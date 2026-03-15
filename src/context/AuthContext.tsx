@@ -7,6 +7,7 @@ interface AuthContextValue {
   session: Session | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
+  signInDemo: () => void
   signOut: () => Promise<void>
 }
 
@@ -19,8 +20,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
-      // Dev mode: inject a mock user so all features are accessible
-      setUser({ id: 'dev-user', email: 'dev@adcraft.app' } as User)
+      // Sem Supabase configurado: mostrar login, user fica null até clicar demo
       setLoading(false)
       return
     }
@@ -50,12 +50,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error }
   }
 
+  function signInDemo(): void {
+    setUser({ id: 'demo-user', email: 'demo@adcraft.app' } as User)
+  }
+
   async function signOut(): Promise<void> {
+    if (!isSupabaseConfigured) { setUser(null); return }
     await supabase.auth.signOut()
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, signIn, signInDemo, signOut }}>
       {children}
     </AuthContext.Provider>
   )

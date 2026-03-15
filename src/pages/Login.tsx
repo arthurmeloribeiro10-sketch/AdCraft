@@ -1,13 +1,14 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Zap, Mail, Lock, AlertCircle } from 'lucide-react'
+import { Zap, Mail, Lock, AlertCircle, FlaskConical } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { isSupabaseConfigured } from '../lib/supabase'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 
 export default function Login() {
-  const { signIn } = useAuth()
+  const { signIn, signInDemo } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -113,13 +114,35 @@ export default function Login() {
             <Button
               type="submit"
               loading={loading}
+              disabled={!isSupabaseConfigured}
               className="w-full py-3 text-base mt-2"
             >
               {loading ? 'Entrando...' : 'Entrar'}
             </Button>
           </form>
 
-          <p className="mt-6 text-center text-xs text-[#6b6b8a]">
+          {/* Demo mode */}
+          {!isSupabaseConfigured && (
+            <div className="mt-4">
+              <div className="flex items-center gap-3 my-4">
+                <div className="flex-1 h-px bg-[rgba(170,59,255,0.15)]" />
+                <span className="text-xs text-[#6b6b8a]">ou</span>
+                <div className="flex-1 h-px bg-[rgba(170,59,255,0.15)]" />
+              </div>
+              <button
+                onClick={() => { signInDemo(); navigate('/') }}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-[rgba(170,59,255,0.25)] text-[#aa3bff] text-sm font-medium hover:bg-[rgba(170,59,255,0.08)] transition-all duration-150"
+              >
+                <FlaskConical size={15} />
+                Explorar no Modo Demo
+              </button>
+              <p className="mt-3 text-center text-[11px] text-[#6b6b8a] leading-relaxed">
+                Todas as funcionalidades disponíveis · Dados de exemplo · Sem autenticação
+              </p>
+            </div>
+          )}
+
+          <p className="mt-5 text-center text-xs text-[#6b6b8a]">
             Não tem conta?{' '}
             <span className="text-[#aa3bff] cursor-pointer hover:underline">
               Fale com o suporte

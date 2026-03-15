@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
-import { isSupabaseConfigured } from './lib/supabase'
 import Login from './pages/Login'
 import AppLayout from './components/layout/AppLayout'
 import Dashboard from './pages/Dashboard'
@@ -38,7 +37,7 @@ function ProtectedRoutes() {
     )
   }
 
-  if (!user && isSupabaseConfigured) return <Navigate to="/login" />
+  if (!user) return <Navigate to="/login" />
 
   return (
     <AppLayout>
@@ -59,7 +58,7 @@ function ProtectedRoutes() {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
