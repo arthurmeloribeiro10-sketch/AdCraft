@@ -36,7 +36,14 @@ export default function Login() {
     const { error } = await signIn(email, password)
     setLoading(false)
     if (error) {
-      setError('Email ou senha inválidos. Verifique seus dados.')
+      const msg = error.message
+      if (msg.includes('Email not confirmed')) {
+        setError('Confirme seu email antes de entrar. Verifique sua caixa de entrada.')
+      } else if (msg.includes('Invalid login') || msg.includes('invalid_credentials')) {
+        setError('Email ou senha incorretos.')
+      } else {
+        setError('Erro ao entrar: ' + msg)
+      }
     } else {
       navigate('/')
     }
