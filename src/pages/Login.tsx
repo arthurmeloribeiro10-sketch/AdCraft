@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Zap, Mail, Lock, AlertCircle, FlaskConical, User, CheckCircle } from 'lucide-react'
+import { Zap, Mail, Lock, AlertCircle, User, CheckCircle } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { isSupabaseConfigured } from '../lib/supabase'
 import Button from '../components/ui/Button'
@@ -10,7 +10,7 @@ import Input from '../components/ui/Input'
 type Mode = 'login' | 'signup'
 
 export default function Login() {
-  const { signIn, signUp, signInDemo } = useAuth()
+  const { signIn, signUp } = useAuth()
   const navigate = useNavigate()
   const [mode, setMode] = useState<Mode>('login')
   const [email, setEmail] = useState('')
@@ -281,26 +281,6 @@ export default function Login() {
             )}
           </AnimatePresence>
 
-          {/* Demo mode */}
-          {!isSupabaseConfigured && (
-            <div className="mt-4">
-              <div className="flex items-center gap-3 my-4">
-                <div className="flex-1 h-px bg-[rgba(170,59,255,0.15)]" />
-                <span className="text-xs text-[#6b6b8a]">ou</span>
-                <div className="flex-1 h-px bg-[rgba(170,59,255,0.15)]" />
-              </div>
-              <button
-                onClick={() => { signInDemo(); navigate('/') }}
-                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-[rgba(170,59,255,0.25)] text-[#aa3bff] text-sm font-medium hover:bg-[rgba(170,59,255,0.08)] transition-all duration-150"
-              >
-                <FlaskConical size={15} />
-                Explorar no Modo Demo
-              </button>
-              <p className="mt-2 text-center text-[11px] text-[#6b6b8a]">
-                Todas as funcionalidades · Dados de exemplo · Sem autenticação
-              </p>
-            </div>
-          )}
         </div>
       </motion.div>
     </div>
