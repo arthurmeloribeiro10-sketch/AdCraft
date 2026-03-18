@@ -57,9 +57,16 @@ export default function Login() {
     const { error } = await signUp(email, password, name)
     setLoading(false)
     if (error) {
-      setError(error.message.includes('already registered')
-        ? 'Este email já está cadastrado. Tente fazer login.'
-        : 'Erro ao criar conta. Tente novamente.')
+      const msg = error.message
+      if (msg.includes('already registered') || msg.includes('already been registered')) {
+        setError('Este email já está cadastrado. Tente fazer login.')
+      } else if (msg.includes('rate limit') || msg.includes('over_email')) {
+        setError('Muitas tentativas. Aguarde alguns minutos e tente novamente.')
+      } else if (msg.includes('invalid email')) {
+        setError('Email inválido. Verifique e tente novamente.')
+      } else {
+        setError('Erro ao criar conta: ' + msg)
+      }
     } else {
       setSuccess('Conta criada! Verifique seu email para confirmar o cadastro.')
     }
