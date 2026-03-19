@@ -1,80 +1,45 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
-import type { Session, User } from '@supabase/supabase-js'
-import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import React, { createContext, useContext, useState, useEffect } from 'react'
+
+const ACCESS_CODE = import.meta.env.VITE_ACCESS_CODE || 'adcraft2024'
+const STORAGE_KEY = 'adcraft_access'
 
 interface AuthContextValue {
-  user: User | null
-  session: Session | null
+  user: { id: string; email: string } | null
   loading: boolean
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>
-  signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>
-  signInDemo: () => void
-  signOut: () => Promise<void>
+  signIn: (code: string) => { error: string | null }
+  signOut: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [session, setSession] = useState<Session | null>(null)
+  const [user, setUser] = useState<{ id: string; email: string } | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!isSupabaseConfigured) {
-      // Sem Supabase configurado: mostrar login, user fica null até clicar demo
-      setLoading(false)
-      return
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (stored === 'granted') {
+      setUser({ id: 'user', email: 'usuario@adcraft.app' })
     }
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
-    }).catch(() => setLoading(false))
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
-
-    return () => subscription.unsubscribe()
+    setLoading(false)
   }, [])
 
-  async function signIn(
-    email: string,
-    password: string
-  ): Promise<{ error: Error | null }> {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    return { error }
+  function signIn(code: string): { error: string | null } {
+    if (code.trim() === ACCESS_CODE) {
+      localStorage.setItem(STORAGE_KEY, 'granted')
+      setUser({ id: 'user', email: 'usuario@adcraft.app' })
+      return { error: null }
+    }
+    return { error: 'Código de acesso inválido.' }
   }
 
-  async function signUp(
-    email: string,
-    password: string,
-    name: string
-  ): Promise<{ error: Error | null }> {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: name } },
-    })
-    return { error }
-  }
-
-  function signInDemo(): void {
-    setUser({ id: 'demo-user', email: 'demo@adcraft.app' } as User)
-  }
-
-  async function signOut(): Promise<void> {
-    if (!isSupabaseConfigured) { setUser(null); return }
-    await supabase.auth.signOut()
+  function signOut() {
+    localStorage.removeItem(STORAGE_KEY)
+    setUser(null)
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signInDemo, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   )
