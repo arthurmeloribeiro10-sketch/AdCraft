@@ -33,6 +33,7 @@ jobs:
         run: bun run build
         env:
           VITE_ACCESS_CODE: ${{ secrets.VITE_ACCESS_CODE }}
+          VITE_OPENAI_API_KEY: ${{ secrets.VITE_OPENAI_API_KEY }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
