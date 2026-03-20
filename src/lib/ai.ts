@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from './supabase'
 import { generateId } from './utils'
+import { getActiveApiKey } from './apiKey'
 import type { Script, Copy, VideoAnalysis, CreativeIdea, Trend } from '../types'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -8,17 +9,16 @@ export type ScriptResult = Omit<Script, 'id' | 'user_id' | 'created_at'>
 export type CopyResult = Omit<Copy, 'id' | 'user_id' | 'created_at'>
 export type VideoAnalysisResult = Omit<VideoAnalysis, 'id' | 'user_id' | 'created_at'>
 
-// ─── OpenAI direct (dev fallback) ────────────────────────────────────────────
-
-const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY
+// ─── OpenAI direct ────────────────────────────────────────────────────────────
 
 async function callOpenAI(prompt: string, systemPrompt?: string): Promise<string> {
-  if (!OPENAI_API_KEY) throw new Error('Configure VITE_OPENAI_API_KEY no .env.local ou configure o Supabase.')
+  const apiKey = getActiveApiKey()
+  if (!apiKey) throw new Error('Configure sua chave da OpenAI nas configurações (ícone ⚙️ no topo).')
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
