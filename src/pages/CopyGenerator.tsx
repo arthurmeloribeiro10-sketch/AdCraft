@@ -48,21 +48,28 @@ export default function CopyGenerator() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<CopyResult | null>(null)
   const [activeTab, setActiveTab] = useState<TabKey>('main')
+  const [error, setError] = useState<string | null>(null)
 
   async function handleGenerate() {
     if (!product.trim() || !audience.trim() || !problem.trim()) return
     setLoading(true)
     setResult(null)
-    const res = await generateCopy({ product, audience, problem })
-    setResult(res)
-    addCopy({
-      ...res,
-      id: generateId(),
-      user_id: '',
-      created_at: new Date().toISOString(),
-    })
-    setLoading(false)
-    setActiveTab('main')
+    setError(null)
+    try {
+      const res = await generateCopy({ product, audience, problem })
+      setResult(res)
+      addCopy({
+        ...res,
+        id: generateId(),
+        user_id: '',
+        created_at: new Date().toISOString(),
+      })
+      setActiveTab('main')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao gerar copy.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -110,6 +117,11 @@ export default function CopyGenerator() {
                 />
               </div>
 
+              {error && (
+                <div className="rounded-lg px-3.5 py-2.5 bg-[rgba(239,68,68,0.1)] border border-[rgba(239,68,68,0.25)] text-sm text-red-400">
+                  {error}
+                </div>
+              )}
               <Button
                 onClick={handleGenerate}
                 loading={loading}

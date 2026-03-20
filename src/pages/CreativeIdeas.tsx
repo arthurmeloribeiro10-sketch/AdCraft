@@ -28,15 +28,22 @@ export default function CreativeIdeas() {
   const [audience, setAudience] = useState('')
   const [loading, setLoading] = useState(false)
   const [ideas, setIdeas] = useState<CreativeIdea[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   async function handleGenerate() {
     if (!niche.trim() || !product.trim() || !audience.trim()) return
     setLoading(true)
     setIdeas([])
-    const res = await generateCreativeIdeas({ niche, product, audience })
-    setIdeas(res)
-    res.forEach((idea) => addIdea({ ...idea, id: generateId(), user_id: '', created_at: new Date().toISOString() }))
-    setLoading(false)
+    setError(null)
+    try {
+      const res = await generateCreativeIdeas({ niche, product, audience })
+      setIdeas(res)
+      res.forEach((idea) => addIdea({ ...idea, id: generateId(), user_id: '', created_at: new Date().toISOString() }))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao gerar ideias.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   function handleUseInScript(_idea: CreativeIdea) {
@@ -82,6 +89,11 @@ export default function CreativeIdeas() {
               onChange={(e) => setAudience(e.target.value)}
             />
           </div>
+          {error && (
+            <div className="mt-3 rounded-lg px-3.5 py-2.5 bg-[rgba(239,68,68,0.1)] border border-[rgba(239,68,68,0.25)] text-sm text-red-400">
+              {error}
+            </div>
+          )}
           <div className="flex justify-end mt-4">
             <Button
               onClick={handleGenerate}

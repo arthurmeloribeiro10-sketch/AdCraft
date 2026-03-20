@@ -1,3 +1,4 @@
+import { supabase, isSupabaseConfigured } from './supabase'
 import { generateId } from './utils'
 import type { Script, Copy, VideoAnalysis, CreativeIdea, Trend } from '../types'
 
@@ -7,12 +8,12 @@ export type ScriptResult = Omit<Script, 'id' | 'user_id' | 'created_at'>
 export type CopyResult = Omit<Copy, 'id' | 'user_id' | 'created_at'>
 export type VideoAnalysisResult = Omit<VideoAnalysis, 'id' | 'user_id' | 'created_at'>
 
-// ─── OpenAI Client ───────────────────────────────────────────────────────────
+// ─── OpenAI direct (dev fallback) ────────────────────────────────────────────
 
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY
 
 async function callOpenAI(prompt: string, systemPrompt?: string): Promise<string> {
-  if (!OPENAI_API_KEY) throw new Error('OpenAI API key não configurada.')
+  if (!OPENAI_API_KEY) throw new Error('Configure VITE_OPENAI_API_KEY no .env.local ou configure o Supabase.')
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -45,6 +46,28 @@ function parseJSON<T>(text: string): T {
   return JSON.parse(raw.trim())
 }
 
+// ─── Edge Function (production) ───────────────────────────────────────────────
+
+async function callEdgeFunction<T>(action: string, params: object): Promise<T> {
+  const { data, error } = await supabase.functions.invoke('ai-proxy', {
+    body: { action, params },
+  })
+  if (error) throw new Error(error.message)
+  if (data?.error) throw new Error(data.error)
+  return data as T
+}
+
+// ─── Router: Edge Function se Supabase configurado, senão direto ─────────────
+
+async function callAI<T>(action: string, params: object, buildPrompt: () => { prompt: string; system: string }): Promise<T> {
+  if (isSupabaseConfigured) {
+    return callEdgeFunction<T>(action, params)
+  }
+  const { prompt, system } = buildPrompt()
+  const raw = await callOpenAI(prompt, system)
+  return parseJSON<T>(raw)
+}
+
 // ─── Script Generator ────────────────────────────────────────────────────────
 
 export async function generateScript(params: {
@@ -55,7 +78,11 @@ export async function generateScript(params: {
 }): Promise<ScriptResult> {
   const { product, audience, platform, template = 'Problema→Solução' } = params
 
-  const prompt = `Crie um roteiro de vídeo para anúncio com os seguintes dados:
+  const result = await callAI<{
+    hook: string; development: string; demo: string
+    reinforcement: string; cta: string; scenes: string[]
+  }>('generate-script', params, () => ({
+    prompt: `Crie um roteiro de vídeo para anúncio com os seguintes dados:
 - Produto/Serviço: ${product}
 - Público-alvo: ${audience}
 - Plataforma: ${platform}
@@ -69,25 +96,11 @@ Retorne APENAS um JSON válido com essa estrutura:
   "reinforcement": "reforço de prova social e benefícios",
   "cta": "chamada para ação clara e urgente",
   "scenes": ["Cena 1: descrição", "Cena 2: descrição", "Cena 3: descrição", "Cena 4: descrição", "Cena 5: descrição", "Cena 6: descrição"]
-}`
+}`,
+    system: 'Você é um especialista em criação de anúncios de alta conversão para redes sociais. Crie roteiros diretos, persuasivos e adaptados ao público brasileiro. Retorne apenas JSON válido.',
+  }))
 
-  const system = 'Você é um especialista em criação de anúncios de alta conversão para redes sociais. Crie roteiros diretos, persuasivos e adaptados ao público brasileiro. Retorne apenas JSON válido.'
-
-  const raw = await callOpenAI(prompt, system)
-  const result = parseJSON<{
-    hook: string; development: string; demo: string
-    reinforcement: string; cta: string; scenes: string[]
-  }>(raw)
-
-  return {
-    product, audience, platform, template,
-    hook: result.hook,
-    development: result.development,
-    demo: result.demo,
-    reinforcement: result.reinforcement,
-    cta: result.cta,
-    scenes: result.scenes,
-  }
+  return { product, audience, platform, template, ...result }
 }
 
 // ─── Copy Generator ──────────────────────────────────────────────────────────
@@ -99,7 +112,10 @@ export async function generateCopy(params: {
 }): Promise<CopyResult> {
   const { product, audience, problem } = params
 
-  const prompt = `Crie copies de alta conversão para anúncio com:
+  const result = await callAI<{
+    mainCopy: string; variations: string[]; headlines: string[]; ctas: string[]
+  }>('generate-copy', params, () => ({
+    prompt: `Crie copies de alta conversão para anúncio com:
 - Produto/Serviço: ${product}
 - Público-alvo: ${audience}
 - Principal dor/problema: ${problem}
@@ -110,23 +126,11 @@ Retorne APENAS um JSON válido:
   "variations": ["variação curta 1 (1-2 linhas)", "variação curta 2", "variação curta 3"],
   "headlines": ["headline 1", "headline 2", "headline 3", "headline 4", "headline 5"],
   "ctas": ["CTA 1", "CTA 2", "CTA 3"]
-}`
+}`,
+    system: 'Você é um copywriter especialista em marketing direto e anúncios de performance para o mercado brasileiro. Use gatilhos mentais, linguagem persuasiva e foco em conversão. Retorne apenas JSON válido.',
+  }))
 
-  const system = 'Você é um copywriter especialista em marketing direto e anúncios de performance para o mercado brasileiro. Use gatilhos mentais, linguagem persuasiva e foco em conversão. Retorne apenas JSON válido.'
-
-  const raw = await callOpenAI(prompt, system)
-  const result = parseJSON<{
-    mainCopy: string; variations: string[]
-    headlines: string[]; ctas: string[]
-  }>(raw)
-
-  return {
-    product, audience, problem,
-    mainCopy: result.mainCopy,
-    variations: result.variations,
-    headlines: result.headlines,
-    ctas: result.ctas,
-  }
+  return { product, audience, problem, ...result }
 }
 
 // ─── Video Analyzer ──────────────────────────────────────────────────────────
@@ -137,7 +141,12 @@ export async function analyzeVideo(params: {
 }): Promise<VideoAnalysisResult> {
   const { description, url } = params
 
-  const prompt = `Analise este anúncio em vídeo e dê uma avaliação detalhada:
+  const result = await callAI<{
+    hookScore: number; retentionScore: number; clarityScore: number
+    storytellingScore: number; ctaScore: number; viralScore: number
+    strengths: string[]; weaknesses: string[]; suggestions: string[]
+  }>('analyze-video', params, () => ({
+    prompt: `Analise este anúncio em vídeo e dê uma avaliação detalhada:
 ${url ? `URL: ${url}` : ''}
 Descrição: ${description}
 
@@ -152,16 +161,9 @@ Retorne APENAS um JSON válido:
   "strengths": ["ponto forte 1", "ponto forte 2", "ponto forte 3", "ponto forte 4"],
   "weaknesses": ["ponto fraco 1", "ponto fraco 2", "ponto fraco 3"],
   "suggestions": ["sugestão 1", "sugestão 2", "sugestão 3", "sugestão 4"]
-}`
-
-  const system = 'Você é um especialista em análise de anúncios de vídeo para redes sociais, com foco em métricas de performance, retenção e conversão. Seja específico e acionável nas sugestões. Retorne apenas JSON válido.'
-
-  const raw = await callOpenAI(prompt, system)
-  const result = parseJSON<{
-    hookScore: number; retentionScore: number; clarityScore: number
-    storytellingScore: number; ctaScore: number; viralScore: number
-    strengths: string[]; weaknesses: string[]; suggestions: string[]
-  }>(raw)
+}`,
+    system: 'Você é um especialista em análise de anúncios de vídeo para redes sociais, com foco em métricas de performance, retenção e conversão. Seja específico e acionável nas sugestões. Retorne apenas JSON válido.',
+  }))
 
   const overallScore = Math.floor(
     (result.hookScore + result.retentionScore + result.clarityScore +
@@ -195,7 +197,10 @@ export async function generateCreativeIdeas(params: {
 }): Promise<CreativeIdea[]> {
   const { niche, product, audience } = params
 
-  const prompt = `Gere 6 ideias criativas de anúncios para:
+  const ideas = await callAI<
+    { concept: string; hook: string; style: string; description: string }[]
+  >('generate-creative-ideas', params, () => ({
+    prompt: `Gere 6 ideias criativas de anúncios para:
 - Nicho: ${niche}
 - Produto/Serviço: ${product}
 - Público-alvo: ${audience}
@@ -208,12 +213,9 @@ Retorne APENAS um JSON válido com um array de 6 ideias:
     "style": "estilo do criativo (ex: UGC, Tutorial, POV, Storytelling)",
     "description": "descrição detalhada de como executar o criativo (3-4 linhas)"
   }
-]`
-
-  const system = 'Você é um diretor criativo especialista em anúncios virais para TikTok, Instagram e YouTube. Crie ideias originais, executáveis e com alto potencial de engajamento para o mercado brasileiro. Retorne apenas JSON válido.'
-
-  const raw = await callOpenAI(prompt, system)
-  const ideas = parseJSON<{ concept: string; hook: string; style: string; description: string }[]>(raw)
+]`,
+    system: 'Você é um diretor criativo especialista em anúncios virais para TikTok, Instagram e YouTube. Crie ideias originais, executáveis e com alto potencial de engajamento para o mercado brasileiro. Retorne apenas JSON válido.',
+  }))
 
   return ideas.map((idea) => ({
     ...idea,

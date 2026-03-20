@@ -59,21 +59,28 @@ export default function VideoAnalyzer() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<VideoAnalysisResult | null>(null)
   const [dragOver, setDragOver] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   async function handleAnalyze() {
     if (!description.trim() && !url.trim()) return
     setLoading(true)
     setResult(null)
-    const res = await analyzeVideo({ url: url || undefined, description: description || url })
-    setResult(res)
-    addAnalysis({
-      ...res,
-      id: generateId(),
-      user_id: '',
-      created_at: new Date().toISOString(),
-    })
-    setLoading(false)
+    setError(null)
+    try {
+      const res = await analyzeVideo({ url: url || undefined, description: description || url })
+      setResult(res)
+      addAnalysis({
+        ...res,
+        id: generateId(),
+        user_id: '',
+        created_at: new Date().toISOString(),
+      })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao analisar vídeo.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -172,6 +179,11 @@ export default function VideoAnalyzer() {
               />
             </div>
 
+            {error && (
+              <div className="rounded-lg px-3.5 py-2.5 mb-3 bg-[rgba(239,68,68,0.1)] border border-[rgba(239,68,68,0.25)] text-sm text-red-400">
+                {error}
+              </div>
+            )}
             <Button
               onClick={handleAnalyze}
               loading={loading}

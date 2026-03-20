@@ -66,20 +66,27 @@ export default function ScriptGenerator() {
   const [template, setTemplate] = useState('Problema→Solução')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<ScriptResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleGenerate() {
     if (!product.trim() || !audience.trim()) return
     setLoading(true)
     setResult(null)
-    const res = await generateScript({ product, audience, platform, template })
-    setResult(res)
-    addScript({
-      ...res,
-      id: generateId(),
-      user_id: '',
-      created_at: new Date().toISOString(),
-    })
-    setLoading(false)
+    setError(null)
+    try {
+      const res = await generateScript({ product, audience, platform, template })
+      setResult(res)
+      addScript({
+        ...res,
+        id: generateId(),
+        user_id: '',
+        created_at: new Date().toISOString(),
+      })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao gerar roteiro.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -163,6 +170,11 @@ export default function ScriptGenerator() {
                 </div>
               </div>
 
+              {error && (
+                <div className="rounded-lg px-3.5 py-2.5 bg-[rgba(239,68,68,0.1)] border border-[rgba(239,68,68,0.25)] text-sm text-red-400">
+                  {error}
+                </div>
+              )}
               <Button
                 onClick={handleGenerate}
                 loading={loading}
