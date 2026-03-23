@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
   TrendingUp, RefreshCw, Zap, Radio, ChevronDown, ChevronUp,
   Copy, Target, Star, Lightbulb, Sparkles, FileText, PenLine,
@@ -86,20 +86,15 @@ function EditableBlock({ label, value, onChange, savedIndicator, rows = 14 }: Ed
           <PenLine size={9} />
           {label} — editável
         </span>
-        <AnimatePresence>
-          {savedIndicator && (
-            <motion.span
-              initial={{ opacity: 0, scale: 0.85 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.85 }}
-              transition={{ duration: 0.15 }}
-              className="flex items-center gap-1 text-[10px] text-emerald-400 font-medium"
-            >
-              <Check size={9} />
-              Salvo automaticamente
-            </motion.span>
-          )}
-        </AnimatePresence>
+        {savedIndicator && (
+          <span
+            className="flex items-center gap-1 text-[10px] text-emerald-400 font-medium"
+            style={{ animation: 'fadeIn 0.15s ease' }}
+          >
+            <Check size={9} />
+            Salvo automaticamente
+          </span>
+        )}
       </div>
       <textarea
         value={value}
@@ -278,17 +273,9 @@ function TrendCard({ trend, index }: { trend: Trend; index: number }) {
         </button>
 
         {/* ── Expanded section ── */}
-        <AnimatePresence>
-          {expanded && (
-            <motion.div
-              key="expanded"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden"
-            >
-              <div className="mt-4 pt-4 border-t border-[rgba(255,255,255,0.06)]">
+        {expanded && (
+          <div style={{ animation: 'fadeIn 0.15s ease' }}>
+            <div className="mt-4 pt-4 border-t border-[rgba(255,255,255,0.06)]">
 
                 {/* Tab bar */}
                 <div className="flex gap-1 mb-4 bg-[rgba(255,255,255,0.03)] rounded-lg p-1">
@@ -313,13 +300,7 @@ function TrendCard({ trend, index }: { trend: Trend; index: number }) {
 
                 {/* ── Estratégia tab ── */}
                 {activeTab === 'estrategia' && (
-                  <motion.div
-                    key="estrategia"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.15 }}
-                    className="space-y-4"
-                  >
+                  <div className="space-y-4" style={{ animation: 'fadeIn 0.15s ease' }}>
                     <div>
                       <div className="flex items-center gap-1.5 mb-1.5">
                         <Zap size={10} className="text-[#22d3ee]" />
@@ -393,17 +374,12 @@ function TrendCard({ trend, index }: { trend: Trend; index: number }) {
                         <ArrowRight size={10} />
                       </button>
                     </div>
-                  </motion.div>
+                  </div>
                 )}
 
                 {/* ── Roteiro tab ── */}
                 {activeTab === 'roteiro' && (
-                  <motion.div
-                    key="roteiro"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.15 }}
-                  >
+                  <div style={{ animation: 'fadeIn 0.15s ease' }}>
                     {generatingScript ? (
                       <GeneratingSpinner label="Gerando roteiro personalizado para esta tendência…" />
                     ) : scriptGenerated ? (
@@ -429,17 +405,12 @@ function TrendCard({ trend, index }: { trend: Trend; index: number }) {
                         </Button>
                       </div>
                     )}
-                  </motion.div>
+                  </div>
                 )}
 
                 {/* ── Copy tab ── */}
                 {activeTab === 'copy' && (
-                  <motion.div
-                    key="copy"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.15 }}
-                  >
+                  <div style={{ animation: 'fadeIn 0.15s ease' }}>
                     {generatingCopy ? (
                       <GeneratingSpinner label="Gerando 2 variações de copy para esta tendência…" />
                     ) : copyGenerated ? (
@@ -465,13 +436,12 @@ function TrendCard({ trend, index }: { trend: Trend; index: number }) {
                         </Button>
                       </div>
                     )}
-                  </motion.div>
+                  </div>
                 )}
 
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+          </div>
+        )}
       </Card>
     </motion.div>
   )
@@ -552,13 +522,7 @@ function SummaryMetrics({ trends }: { trends: Trend[] }) {
 
 function LoadingScreen() {
   return (
-    <motion.div
-      key="loading"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="flex flex-col items-center justify-center py-28 gap-5"
-    >
+    <div className="flex flex-col items-center justify-center py-28 gap-5" style={{ animation: 'fadeIn 0.2s ease' }}>
       <div className="relative w-16 h-16 flex items-center justify-center">
         <div className="absolute inset-0 rounded-full border-2 border-[rgba(170,59,255,0.15)]" />
         <div className="absolute inset-0 rounded-full border-2 border-[#aa3bff] border-t-transparent animate-spin" />
@@ -587,7 +551,7 @@ function LoadingScreen() {
           <div key={i} className="skeleton h-44 rounded-xl" style={{ opacity: 0.4 + i * 0.05 }} />
         ))}
       </div>
-    </motion.div>
+    </div>
   )
 }
 
@@ -650,18 +614,11 @@ export default function TrendsRadar() {
       </div>
 
       {/* Content */}
-      <AnimatePresence mode="wait">
-        {loading ? (
-          <LoadingScreen key="loading" />
-        ) : (
-          <motion.div
-            key="content"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.2 }}
-            className="space-y-5"
-          >
-            <SummaryMetrics trends={trends} />
+      {loading ? (
+        <LoadingScreen />
+      ) : (
+        <div className="space-y-5" style={{ animation: 'fadeIn 0.2s ease' }}>
+          <SummaryMetrics trends={trends} />
 
             {trends.length > 0 && (
               <div className="flex gap-2 flex-wrap items-center">
@@ -708,9 +665,8 @@ export default function TrendsRadar() {
                 </Button>
               </div>
             )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+        </div>
+      )}
     </div>
   )
 }
