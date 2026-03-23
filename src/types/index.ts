@@ -106,13 +106,26 @@ export interface WinnerAd {
   created_at: string
 }
 
+export interface TrendInputsAdcraft {
+  produto: string
+  publico: string
+  dor: string
+  promessa: string
+}
+
 export interface Trend {
   id: string
-  format: string
-  growth_pct: number
-  hook_style: string
-  description: string
-  category: string
+  nome: string
+  plataforma: string
+  tipo: 'copy' | 'visual' | 'formato'
+  descricao: string
+  por_que_viraliza: string
+  como_usar: string
+  copy_exemplo: string
+  ideia_criativo: string
+  nivel_viralidade: number
+  potencial_conversao: number
+  inputs_adcraft: TrendInputsAdcraft
   created_at: string
 }
 
