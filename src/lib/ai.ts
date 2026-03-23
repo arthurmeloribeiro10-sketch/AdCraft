@@ -226,6 +226,94 @@ Retorne APENAS um JSON válido com um array de 6 ideias:
   }))
 }
 
+// ─── Trend Script Generator ──────────────────────────────────────────────────
+
+export async function generateTrendScript(trend: Trend): Promise<string> {
+  const apiKey = getActiveApiKey()
+
+  const fallback = `🎬 HOOK (0–3 seg)
+${trend.inputs_adcraft.promessa}
+
+😤 PROBLEMA (3–8 seg)
+${trend.inputs_adcraft.dor}
+
+💡 SOLUÇÃO (8–20 seg)
+Apresente o ${trend.inputs_adcraft.produto} como a solução direta, simples e comprovada para o problema acima.
+
+✅ PROVA / BENEFÍCIO (20–30 seg)
+Mostre um resultado real: depoimento, número ou transformação visual. Reforce por que funciona agora.
+
+🚀 CTA (30–35 seg)
+"Clica no link agora e começa hoje mesmo. Vagas/estoque limitado."`
+
+  if (!apiKey && !isSupabaseConfigured) return fallback
+
+  try {
+    const result = await callAI<{ roteiro: string }>(
+      'generate-trend-script',
+      { trend },
+      () => ({
+        prompt: `Crie um roteiro estruturado para anúncio baseado nesta tendência viral:
+
+Tendência: ${trend.nome}
+Plataforma: ${trend.plataforma}
+Tipo: ${trend.tipo}
+Como usar: ${trend.como_usar}
+Produto: ${trend.inputs_adcraft.produto}
+Público: ${trend.inputs_adcraft.publico}
+Dor: ${trend.inputs_adcraft.dor}
+Promessa: ${trend.inputs_adcraft.promessa}
+
+Retorne APENAS um JSON válido:
+{
+  "roteiro": "roteiro completo separado por seções com emojis:\n\n🎬 HOOK (0–3 seg)\n[hook de abertura]\n\n😤 PROBLEMA (3–8 seg)\n[problema que o público sente]\n\n💡 SOLUÇÃO (8–20 seg)\n[como o produto resolve]\n\n✅ PROVA / BENEFÍCIO (20–30 seg)\n[prova social, resultado ou benefício tangível]\n\n🚀 CTA (30–35 seg)\n[chamada para ação clara e urgente]"
+}`,
+        system: 'Você é um roteirista especialista em anúncios de alta conversão para o mercado brasileiro. Crie roteiros diretos, práticos e persuasivos. Retorne apenas JSON válido.',
+      })
+    )
+    return result.roteiro
+  } catch {
+    return fallback
+  }
+}
+
+// ─── Trend Copy Generator ────────────────────────────────────────────────────
+
+export async function generateTrendCopy(trend: Trend): Promise<string> {
+  const apiKey = getActiveApiKey()
+
+  const fallback = `📝 VARIAÇÃO 1 — Emocional\n─────────────────────────────\n${trend.copy_exemplo}\n\n📝 VARIAÇÃO 2 — Direta / Oferta\n─────────────────────────────\n${trend.inputs_adcraft.promessa}. Sem enrolação, sem desculpa. O ${trend.inputs_adcraft.produto} que já transformou centenas de pessoas como você. Comece agora — link na bio.`
+
+  if (!apiKey && !isSupabaseConfigured) return fallback
+
+  try {
+    const result = await callAI<{ variacao1: string; variacao2: string }>(
+      'generate-trend-copy',
+      { trend },
+      () => ({
+        prompt: `Crie 2 variações de copy para anúncio baseadas nesta tendência:
+
+Tendência: ${trend.nome}
+Plataforma: ${trend.plataforma}
+Dor: ${trend.inputs_adcraft.dor}
+Promessa: ${trend.inputs_adcraft.promessa}
+Público: ${trend.inputs_adcraft.publico}
+Copy de referência: ${trend.copy_exemplo}
+
+Retorne APENAS um JSON válido:
+{
+  "variacao1": "copy emocional (3–4 parágrafos, foca na dor, identidade e transformação, termina com CTA suave)",
+  "variacao2": "copy direta/oferta (2–3 parágrafos, foca no benefício concreto e urgência, CTA forte)"
+}`,
+        system: 'Você é um copywriter especialista em performance ads para o mercado brasileiro. Escreva copies persuasivas, diretas e com alto potencial de conversão. Retorne apenas JSON válido.',
+      })
+    )
+    return `📝 VARIAÇÃO 1 — Emocional\n─────────────────────────────\n${result.variacao1}\n\n📝 VARIAÇÃO 2 — Direta / Oferta\n─────────────────────────────\n${result.variacao2}`
+  } catch {
+    return fallback
+  }
+}
+
 // ─── Trends — dados curados de fallback ──────────────────────────────────────
 
 const MOCK_TRENDS: Omit<Trend, 'id' | 'created_at'>[] = [

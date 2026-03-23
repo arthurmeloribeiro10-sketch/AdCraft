@@ -129,6 +129,15 @@ export interface Trend {
   created_at: string
 }
 
+export interface TrendSave {
+  id: string
+  trend_id: string
+  trend_nome: string
+  type: 'roteiro' | 'copy'
+  content: string
+  created_at: string
+}
+
 export interface HistoryItem {
   id: string
   user_id: string
