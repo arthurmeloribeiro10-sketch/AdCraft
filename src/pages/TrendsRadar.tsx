@@ -147,6 +147,7 @@ function TrendCard({ trend, index }: { trend: Trend; index: number }) {
   const [savedCopy, setSavedCopy] = useState(false)
   const debounceScript = useRef<ReturnType<typeof setTimeout> | null>(null)
   const debounceCopy = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const expandedRef = useRef<HTMLDivElement>(null)
 
   // Restore saved content on mount
   useEffect(() => {
@@ -227,7 +228,7 @@ function TrendCard({ trend, index }: { trend: Trend; index: number }) {
       transition={{ duration: 0.2, delay: index * 0.04 }}
       whileHover={expanded ? undefined : { y: -2 }}
     >
-      <Card className="p-4 relative overflow-hidden">
+      <Card className="p-4 relative">
         {/* Background accent glow */}
         <div
           className="absolute top-0 right-0 w-28 h-28 rounded-full blur-3xl pointer-events-none"
@@ -263,8 +264,15 @@ function TrendCard({ trend, index }: { trend: Trend; index: number }) {
         {/* Expand toggle */}
         <button
           onClick={() => {
-            if (!expanded) { setExpanded(true); setActiveTab('estrategia') }
-            else setExpanded(false)
+            if (!expanded) {
+              setExpanded(true)
+              setActiveTab('estrategia')
+              setTimeout(() => {
+                expandedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+              }, 50)
+            } else {
+              setExpanded(false)
+            }
           }}
           className="flex items-center gap-1.5 text-[11px] font-semibold text-[#aa3bff] hover:text-white transition-colors"
         >
@@ -274,7 +282,7 @@ function TrendCard({ trend, index }: { trend: Trend; index: number }) {
 
         {/* ── Expanded section ── */}
         {expanded && (
-          <div style={{ animation: 'fadeIn 0.15s ease' }}>
+          <div ref={expandedRef} style={{ animation: 'fadeIn 0.15s ease' }}>
             <div className="mt-4 pt-4 border-t border-[rgba(255,255,255,0.06)]">
 
                 {/* Tab bar */}
