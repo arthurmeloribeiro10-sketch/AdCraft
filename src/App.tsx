@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider, useAuth } from './context/AuthContext'
+import { AuthProvider } from './context/AuthContext'
+import { RouteGuard, AdminGuard, FeatureGuard } from './components/guards/RouteGuard'
 import Login from './pages/Login'
 import AppLayout from './components/layout/AppLayout'
 import Dashboard from './pages/Dashboard'
@@ -10,59 +11,89 @@ import CreativeIdeas from './pages/CreativeIdeas'
 import WinnersLibrary from './pages/WinnersLibrary'
 import TrendsRadar from './pages/TrendsRadar'
 import ProjectHistory from './pages/ProjectHistory'
-
-function ProtectedRoutes() {
-  const { user, loading } = useAuth()
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#08080f] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#aa3bff] to-[#6366f1] flex items-center justify-center animate-pulse">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
-              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-            </svg>
-          </div>
-          <div className="flex gap-1">
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className="w-1.5 h-1.5 rounded-full bg-[#aa3bff] animate-bounce"
-                style={{ animationDelay: `${i * 0.15}s` }}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!user) return <Navigate to="/login" />
-
-  return (
-    <AppLayout>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/roteiros" element={<ScriptGenerator />} />
-        <Route path="/copy" element={<CopyGenerator />} />
-        <Route path="/video" element={<VideoAnalyzer />} />
-        <Route path="/ideias" element={<CreativeIdeas />} />
-        <Route path="/biblioteca" element={<WinnersLibrary />} />
-        <Route path="/tendencias" element={<TrendsRadar />} />
-        <Route path="/historico" element={<ProjectHistory />} />
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
-    </AppLayout>
-  )
-}
+import UserProfile from './pages/UserProfile'
+import AdminLayout from './pages/admin/AdminLayout'
+import AdminDashboard from './pages/admin/index'
+import UserManagement from './pages/admin/UserManagement'
+import PlanManagement from './pages/admin/PlanManagement'
+import TokenManagement from './pages/admin/TokenManagement'
+import AuditLogs from './pages/admin/AuditLogs'
 
 export default function App() {
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <AuthProvider>
         <Routes>
+          {/* Public routes */}
           <Route path="/login" element={<Login />} />
-          <Route path="/*" element={<ProtectedRoutes />} />
+          <Route path="/register" element={<Navigate to="/login" replace />} />
+
+          {/* Admin routes */}
+          <Route
+            path="/admin"
+            element={
+              <AdminGuard>
+                <AdminLayout />
+              </AdminGuard>
+            }
+          >
+            <Route index element={<AdminDashboard />} />
+            <Route path="usuarios" element={<UserManagement />} />
+            <Route path="planos" element={<PlanManagement />} />
+            <Route path="tokens" element={<TokenManagement />} />
+            <Route path="auditoria" element={<AuditLogs />} />
+          </Route>
+
+          {/* Protected app routes */}
+          <Route
+            path="/*"
+            element={
+              <RouteGuard>
+                <AppLayout>
+                  <Routes>
+                    <Route path="/" element={<Dashboard />} />
+                    <Route path="/roteiros" element={
+                      <FeatureGuard feature="scriptGenerator">
+                        <ScriptGenerator />
+                      </FeatureGuard>
+                    } />
+                    <Route path="/copy" element={
+                      <FeatureGuard feature="copyGenerator">
+                        <CopyGenerator />
+                      </FeatureGuard>
+                    } />
+                    <Route path="/video" element={
+                      <FeatureGuard feature="videoAnalyzer">
+                        <VideoAnalyzer />
+                      </FeatureGuard>
+                    } />
+                    <Route path="/ideias" element={
+                      <FeatureGuard feature="creativeIdeas">
+                        <CreativeIdeas />
+                      </FeatureGuard>
+                    } />
+                    <Route path="/biblioteca" element={
+                      <FeatureGuard feature="winnersLibrary">
+                        <WinnersLibrary />
+                      </FeatureGuard>
+                    } />
+                    <Route path="/tendencias" element={
+                      <FeatureGuard feature="trendsRadar">
+                        <TrendsRadar />
+                      </FeatureGuard>
+                    } />
+                    <Route path="/historico" element={
+                      <FeatureGuard feature="projectHistory">
+                        <ProjectHistory />
+                      </FeatureGuard>
+                    } />
+                    <Route path="/perfil" element={<UserProfile />} />
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </AppLayout>
+              </RouteGuard>
+            }
+          />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

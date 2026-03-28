@@ -11,31 +11,40 @@ import {
   History,
   Zap,
   LogOut,
+  Shield,
+  Lock,
+  User,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useStore } from '../../store/useStore'
+import { usePermissions } from '../../hooks/usePermissions'
 import { cn } from '../../lib/utils'
+import PlanBadge from '../ui/PlanBadge'
+import UsageMeter from '../ui/UsageMeter'
+import type { PlanFeatures } from '../../types/auth'
 
 interface NavItem {
   label: string
   icon: React.ElementType
   path: string
+  feature?: keyof PlanFeatures
 }
 
 const navItems: NavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
-  { label: 'Gerador de Roteiros', icon: FileText, path: '/roteiros' },
-  { label: 'Gerador de Copy', icon: PenTool, path: '/copy' },
-  { label: 'Analisador de Vídeo', icon: Video, path: '/video' },
-  { label: 'Ideias de Criativos', icon: Lightbulb, path: '/ideias' },
-  { label: 'Biblioteca de Anúncios', icon: BookOpen, path: '/biblioteca' },
-  { label: 'Radar de Tendências', icon: TrendingUp, path: '/tendencias' },
-  { label: 'Histórico', icon: History, path: '/historico' },
+  { label: 'Gerador de Roteiros', icon: FileText, path: '/roteiros', feature: 'scriptGenerator' },
+  { label: 'Gerador de Copy', icon: PenTool, path: '/copy', feature: 'copyGenerator' },
+  { label: 'Analisador de Vídeo', icon: Video, path: '/video', feature: 'videoAnalyzer' },
+  { label: 'Ideias de Criativos', icon: Lightbulb, path: '/ideias', feature: 'creativeIdeas' },
+  { label: 'Biblioteca de Anúncios', icon: BookOpen, path: '/biblioteca', feature: 'winnersLibrary' },
+  { label: 'Radar de Tendências', icon: TrendingUp, path: '/tendencias', feature: 'trendsRadar' },
+  { label: 'Histórico', icon: History, path: '/historico', feature: 'projectHistory' },
 ]
 
 export default function Sidebar() {
-  const { user, signOut } = useAuth()
+  const { profile, signOut, isAdmin } = useAuth()
   const { setActiveSection } = useStore()
+  const { canAccess, planName, isActive } = usePermissions()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -44,10 +53,21 @@ export default function Sidebar() {
     navigate(item.path)
   }
 
-  const isActive = (path: string) => {
+  const isActivePath = (path: string) => {
     if (path === '/') return location.pathname === '/'
     return location.pathname.startsWith(path)
   }
+
+  const displayName =
+    profile?.full_name ??
+    profile?.email?.split('@')[0] ??
+    'Usuário'
+
+  const initials = displayName
+    .split(' ')
+    .slice(0, 2)
+    .map((n: string) => n[0]?.toUpperCase() ?? '')
+    .join('')
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-60 flex flex-col bg-[#0f0f1a] border-r border-[rgba(170,59,255,0.1)] z-40">
@@ -63,7 +83,10 @@ export default function Sidebar() {
       <nav className="flex-1 overflow-y-auto py-3 px-2">
         {navItems.map((item) => {
           const Icon = item.icon
-          const active = isActive(item.path)
+          const active = isActivePath(item.path)
+          const hasAccess = item.feature ? canAccess(item.feature) : true
+          const isLocked = !hasAccess && !isAdmin
+
           return (
             <button
               key={item.path}
@@ -77,27 +100,58 @@ export default function Sidebar() {
             >
               <Icon
                 size={16}
-                className={active ? 'text-[#aa3bff]' : 'text-[#6b6b8a]'}
+                className={active ? 'text-[#aa3bff]' : isLocked ? 'text-[#6b6b8a] opacity-50' : 'text-[#6b6b8a]'}
               />
-              <span className="truncate">{item.label}</span>
+              <span className={cn('truncate flex-1', isLocked && 'opacity-60')}>
+                {item.label}
+              </span>
+              {isLocked && (
+                <Lock size={11} className="text-[#6b6b8a] opacity-60 shrink-0" />
+              )}
             </button>
           )
         })}
       </nav>
 
+      {/* Usage meter */}
+      {profile && (
+        <div className="px-3 pb-1 border-t border-[rgba(170,59,255,0.05)] pt-2">
+          <UsageMeter compact />
+        </div>
+      )}
+
       {/* User area */}
       <div className="p-3 border-t border-[rgba(170,59,255,0.08)]">
+        {/* Admin link */}
+        {isAdmin && (
+          <button
+            onClick={() => navigate('/admin')}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-[#aa3bff] hover:bg-[rgba(170,59,255,0.08)] transition-all mb-2 border border-[rgba(170,59,255,0.12)] hover:border-[rgba(170,59,255,0.25)]"
+          >
+            <Shield size={13} />
+            <span className="flex-1 text-left">Painel Admin</span>
+          </button>
+        )}
+
+        {/* User info */}
         <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg bg-[rgba(255,255,255,0.03)]">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#aa3bff] to-[#6366f1] flex items-center justify-center shrink-0">
-            <span className="text-white text-xs font-semibold">
-              {user?.email?.[0]?.toUpperCase() ?? 'U'}
+          <button
+            onClick={() => navigate('/perfil')}
+            className="w-8 h-8 rounded-full bg-gradient-to-br from-[#aa3bff] to-[#6366f1] flex items-center justify-center shrink-0 hover:opacity-80 transition-opacity"
+            title="Meu Perfil"
+          >
+            <span className="text-white text-[11px] font-semibold">
+              {initials || <User size={12} />}
             </span>
-          </div>
+          </button>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-[#c4c4d4] truncate">
-              {user?.email ?? 'usuario@email.com'}
-            </p>
-            <p className="text-[10px] text-[#6b6b8a]">Pro Plan</p>
+            <p className="text-xs font-medium text-[#c4c4d4] truncate">{displayName}</p>
+            <div className="flex items-center gap-1 mt-0.5">
+              <PlanBadge plan={planName} variant="compact" />
+              {!isActive && (
+                <span className="text-[9px] text-red-400">Inativo</span>
+              )}
+            </div>
           </div>
           <button
             onClick={signOut}
