@@ -142,10 +142,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     let mounted = true
 
+    // Safety net: force-clear loading after 6s no matter what
+    const safetyTimer = setTimeout(() => {
+      if (mounted) {
+        console.warn('AuthContext: safety timeout fired — forcing isLoading=false')
+        setIsLoading(false)
+      }
+    }, 6000)
+
     // Initial session check using getUser() — avoids localStorage lock issues
     const initAuth = async () => {
       try {
-        const { data: { user: currentUser } } = await supabase.auth.getUser()
+        const { data: { user: currentUser }, error } = await supabase.auth.getUser()
+        if (error) console.warn('getUser error (expected when no session):', error.message)
         if (!mounted) return
         if (currentUser) {
           setUser(currentUser)
@@ -159,6 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (err) {
         console.error('AuthContext init error:', err)
       } finally {
+        clearTimeout(safetyTimer)
         if (mounted) setIsLoading(false)
       }
     }
