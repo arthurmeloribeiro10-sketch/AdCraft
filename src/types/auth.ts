@@ -20,6 +20,10 @@ export type AuditAction =
   | 'api.limit_reached'
   | 'profile.updated'
   | 'password.changed'
+  | 'plan_key_validated'
+  | 'plan_key_failed'
+  | 'plan_key_rotated'
+  | 'email_blocked'
 
 export interface PlanFeatures {
   scriptGenerator: boolean
@@ -109,9 +113,34 @@ export interface AuthState {
   hasApiQuota: () => boolean
 }
 
+export interface PlanKeyStatus {
+  plan_id: string
+  plan_name: string
+  plan_display_name: string
+  has_active_key: boolean
+  expires_at: string | null
+  created_at: string | null
+  is_expired: boolean
+  notes: string | null
+}
+
+export interface BlockedEmail {
+  id: string
+  email: string
+  reason: string | null
+  created_at: string
+}
+
+export interface SystemSetting {
+  key: string
+  value: boolean | string | number | object
+  updated_at: string
+}
+
 export interface AuthContextValue extends AuthState {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
-  signUp: (email: string, password: string, fullName?: string) => Promise<{ error: string | null }>
+  signUp: (email: string, password: string, fullName?: string, planKey?: string, planName?: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
+  validatePlanKey: (planName: string, planKey: string) => Promise<{ success: boolean; error?: string }>
 }

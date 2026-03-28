@@ -10,11 +10,16 @@ import {
   ChevronRight,
   X,
   AlertTriangle,
+  ShieldOff,
+  ShieldCheck,
+  Trash2,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
 import { audit } from '../../lib/audit'
 import { getPlanColor } from '../../lib/planConfig'
+import { adminGetRegistrationEnabled, adminToggleRegistration, adminGetBlockedEmails, adminBlockEmail, adminUnblockEmail } from '../../lib/planKey'
+import type { BlockedEmail } from '../../lib/planKey'
 import type { UserProfile, Plan, UserRole } from '../../types/auth'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
@@ -51,6 +56,14 @@ export default function UserManagement() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(0)
 
+  // Registration control state
+  const [registrationEnabled, setRegistrationEnabled] = useState(true)
+  const [regToggleLoading, setRegToggleLoading] = useState(false)
+  const [blockedEmails, setBlockedEmails] = useState<BlockedEmail[]>([])
+  const [newBlockEmail, setNewBlockEmail] = useState('')
+  const [newBlockReason, setNewBlockReason] = useState('')
+  const [blockLoading, setBlockLoading] = useState(false)
+
   // Filters
   const [search, setSearch] = useState('')
   const [filterPlan, setFilterPlan] = useState('')
@@ -86,6 +99,45 @@ export default function UserManagement() {
     const { data } = await supabase.from('plans').select('*').order('sort_order')
     if (data) setPlans(data as Plan[])
   }, [])
+
+  const loadRegistrationData = useCallback(async () => {
+    const [enabled, emails] = await Promise.all([
+      adminGetRegistrationEnabled(),
+      adminGetBlockedEmails(),
+    ])
+    setRegistrationEnabled(enabled)
+    setBlockedEmails(emails)
+  }, [])
+
+  const handleToggleRegistration = async () => {
+    setRegToggleLoading(true)
+    try {
+      const ok = await adminToggleRegistration(!registrationEnabled)
+      if (ok) setRegistrationEnabled(v => !v)
+    } finally {
+      setRegToggleLoading(false)
+    }
+  }
+
+  const handleBlockEmail = async () => {
+    if (!newBlockEmail.trim()) return
+    setBlockLoading(true)
+    try {
+      const ok = await adminBlockEmail(newBlockEmail.trim(), newBlockReason.trim() || undefined)
+      if (ok) {
+        setNewBlockEmail('')
+        setNewBlockReason('')
+        await loadRegistrationData()
+      }
+    } finally {
+      setBlockLoading(false)
+    }
+  }
+
+  const handleUnblockEmail = async (email: string) => {
+    await adminUnblockEmail(email)
+    await loadRegistrationData()
+  }
 
   const loadUsers = useCallback(async () => {
     setLoading(true)
@@ -137,6 +189,10 @@ export default function UserManagement() {
   useEffect(() => {
     loadUsers()
   }, [loadUsers])
+
+  useEffect(() => {
+    loadRegistrationData()
+  }, [loadRegistrationData])
 
   // Reset page when filters change
   useEffect(() => {
@@ -282,7 +338,93 @@ export default function UserManagement() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto space-y-8">
+      {/* ── REGISTRATION CONTROL SECTION ── */}
+      <div className="rounded-xl border p-5 space-y-4" style={{ background: '#0f0f1a', borderColor: '#1a1a2e' }}>
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="w-5 h-5" style={{ color: '#aa3bff' }} />
+          <h2 className="text-base font-semibold text-white">Controle de Cadastro</h2>
+        </div>
+
+        {/* Toggle registration */}
+        <div className="flex items-center justify-between py-3 border-b" style={{ borderColor: '#1a1a2e' }}>
+          <div>
+            <p className="text-sm font-medium text-white">Cadastros abertos</p>
+            <p className="text-xs mt-0.5" style={{ color: '#6b6b8a' }}>
+              {registrationEnabled ? 'Novos usuários podem se cadastrar.' : 'Cadastro desativado globalmente.'}
+            </p>
+          </div>
+          <button
+            onClick={handleToggleRegistration}
+            disabled={regToggleLoading}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-60"
+            style={registrationEnabled
+              ? { background: 'rgba(34,197,94,0.15)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.3)' }
+              : { background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }
+            }
+          >
+            {registrationEnabled ? <ShieldCheck className="w-4 h-4" /> : <ShieldOff className="w-4 h-4" />}
+            {regToggleLoading ? 'Aguarde...' : registrationEnabled ? 'Ativado' : 'Desativado'}
+          </button>
+        </div>
+
+        {/* Block email */}
+        <div>
+          <p className="text-sm font-medium text-white mb-3">Bloquear email</p>
+          <div className="flex gap-2">
+            <input
+              type="email"
+              placeholder="email@exemplo.com"
+              value={newBlockEmail}
+              onChange={e => setNewBlockEmail(e.target.value)}
+              className="flex-1 px-3 py-2 rounded-lg border text-sm outline-none"
+              style={{ background: '#08080f', borderColor: '#1a1a2e', color: '#c4c4d4' }}
+            />
+            <input
+              type="text"
+              placeholder="Motivo (opcional)"
+              value={newBlockReason}
+              onChange={e => setNewBlockReason(e.target.value)}
+              className="flex-1 px-3 py-2 rounded-lg border text-sm outline-none"
+              style={{ background: '#08080f', borderColor: '#1a1a2e', color: '#c4c4d4' }}
+            />
+            <button
+              onClick={handleBlockEmail}
+              disabled={blockLoading || !newBlockEmail.trim()}
+              className="px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
+              style={{ background: '#aa3bff22', color: '#aa3bff', border: '1px solid #aa3bff44' }}
+            >
+              {blockLoading ? '...' : 'Bloquear'}
+            </button>
+          </div>
+        </div>
+
+        {/* Blocked emails list */}
+        {blockedEmails.length > 0 && (
+          <div>
+            <p className="text-xs font-medium mb-2" style={{ color: '#6b6b8a' }}>Emails bloqueados ({blockedEmails.length})</p>
+            <div className="space-y-1.5 max-h-40 overflow-y-auto">
+              {blockedEmails.map(be => (
+                <div key={be.id} className="flex items-center justify-between px-3 py-2 rounded-lg" style={{ background: '#08080f' }}>
+                  <div>
+                    <span className="text-sm" style={{ color: '#c4c4d4' }}>{be.email}</span>
+                    {be.reason && <span className="ml-2 text-xs" style={{ color: '#6b6b8a' }}>{be.reason}</span>}
+                  </div>
+                  <button
+                    onClick={() => handleUnblockEmail(be.email)}
+                    className="p-1.5 rounded-md transition-all"
+                    style={{ color: '#6b6b8a' }}
+                    title="Desbloquear"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>

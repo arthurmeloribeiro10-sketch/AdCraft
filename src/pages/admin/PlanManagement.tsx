@@ -1,316 +1,410 @@
 import { useState, useEffect, useCallback } from 'react'
-import {
-  CreditCard,
-  Save,
-  Check,
-  X,
-  AlertTriangle,
-} from 'lucide-react'
+import { Key, RefreshCw, Shield, AlertTriangle, CheckCircle, Clock, Eye, EyeOff, Calendar, Save, ChevronDown, ChevronUp } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
-import { useAuth } from '../../context/AuthContext'
-import { getFeatureLabel, getPlanColor, getPlanBgColor } from '../../lib/planConfig'
-import type { Plan, PlanFeatures } from '../../types/auth'
-import Button from '../../components/ui/Button'
-import Card from '../../components/ui/Card'
+import { adminGetPlanKeyStatus, adminSetPlanKey } from '../../lib/planKey'
+import type { PlanKeyStatus } from '../../lib/planKey'
+import type { Plan } from '../../types/auth'
 
-const BOOLEAN_FEATURES: (keyof PlanFeatures)[] = [
-  'scriptGenerator',
-  'copyGenerator',
-  'videoAnalyzer',
-  'creativeIdeas',
-  'winnersLibrary',
-  'trendsRadar',
-  'projectHistory',
-]
-
-const NUMBER_FEATURES: (keyof PlanFeatures)[] = [
-  'maxScripts',
-  'maxCopies',
-  'maxAnalyses',
-  'maxIdeas',
-]
-
-interface PlanStats {
-  planId: string
-  userCount: number
-  apiCallsToday: number
+const PLAN_COLORS: Record<string, string> = {
+  starter: '#6b6b8a',
+  pro: '#6366f1',
+  elite: '#aa3bff',
 }
 
 export default function PlanManagement() {
-  const { profile: actorProfile } = useAuth()
-
   const [plans, setPlans] = useState<Plan[]>([])
-  const [stats, setStats] = useState<PlanStats[]>([])
+  const [planKeys, setPlanKeys] = useState<PlanKeyStatus[]>([])
   const [loading, setLoading] = useState(true)
-  const [savingPlan, setSavingPlan] = useState<string | null>(null)
-  const [editForms, setEditForms] = useState<Record<string, Partial<Plan>>>({})
-  const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
+  const [saving, setSaving] = useState<string | null>(null)
+  const [success, setSuccess] = useState('')
 
-  const loadPlans = useCallback(async () => {
+  // Plan key modal state
+  const [keyModal, setKeyModal] = useState<{ open: boolean; planName: string; planDisplay: string } | null>(null)
+  const [newKey, setNewKey] = useState('')
+  const [showNewKey, setShowNewKey] = useState(false)
+  const [keyExpiresAt, setKeyExpiresAt] = useState('')
+  const [keyNotes, setKeyNotes] = useState('')
+  const [keySaving, setKeySaving] = useState(false)
+  const [keyError, setKeyError] = useState('')
+
+  // Feature limits state
+  const [editedPlans, setEditedPlans] = useState<Record<string, Partial<Plan>>>({})
+  const [expandedPlan, setExpandedPlan] = useState<string | null>(null)
+
+  const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const { data: planData } = await supabase
-        .from('plans')
-        .select('*')
-        .order('sort_order')
-
-      if (planData) {
-        setPlans(planData as Plan[])
-        const forms: Record<string, Partial<Plan>> = {}
-        for (const p of planData) {
-          forms[p.id] = {
-            api_limit_daily: p.api_limit_daily,
-            api_limit_monthly: p.api_limit_monthly,
-            features: { ...p.features },
-          }
-        }
-        setEditForms(forms)
-      }
+      const [{ data: plansData }, keysData] = await Promise.all([
+        supabase.from('plans').select('*').order('sort_order'),
+        adminGetPlanKeyStatus(),
+      ])
+      setPlans(plansData || [])
+      setPlanKeys(keysData)
     } catch (err) {
-      console.error('loadPlans error:', err)
+      console.error('PlanManagement loadData:', err)
     } finally {
       setLoading(false)
     }
   }, [])
 
-  const loadStats = useCallback(async () => {
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('plan_id, api_calls_today')
+  useEffect(() => { loadData() }, [loadData])
 
-    if (profileData) {
-      const statsMap: Record<string, PlanStats> = {}
-      for (const p of profileData) {
-        if (!p.plan_id) continue
-        if (!statsMap[p.plan_id]) {
-          statsMap[p.plan_id] = { planId: p.plan_id, userCount: 0, apiCallsToday: 0 }
-        }
-        statsMap[p.plan_id].userCount++
-        statsMap[p.plan_id].apiCallsToday += p.api_calls_today ?? 0
-      }
-      setStats(Object.values(statsMap))
-    }
-  }, [])
-
-  useEffect(() => {
-    loadPlans()
-    loadStats()
-  }, [loadPlans, loadStats])
-
-  function updateForm(planId: string, key: keyof Partial<Plan>, value: unknown) {
-    setEditForms((prev) => ({
-      ...prev,
-      [planId]: { ...prev[planId], [key]: value },
-    }))
+  const openKeyModal = (planName: string, planDisplay: string) => {
+    setKeyModal({ open: true, planName, planDisplay })
+    setNewKey('')
+    setKeyExpiresAt('')
+    setKeyNotes('')
+    setKeyError('')
+    setShowNewKey(false)
   }
 
-  function updateFeature(planId: string, feature: keyof PlanFeatures, value: boolean | number) {
-    setEditForms((prev) => ({
+  const handleSetPlanKey = async () => {
+    if (!keyModal) return
+    if (newKey.length < 8) { setKeyError('A chave deve ter pelo menos 8 caracteres.'); return }
+    setKeySaving(true)
+    setKeyError('')
+    try {
+      const result = await adminSetPlanKey(
+        keyModal.planName,
+        newKey,
+        keyExpiresAt || null,
+        keyNotes || null
+      )
+      if (!result.success) { setKeyError(result.error || 'Erro ao salvar chave.'); return }
+      setKeyModal(null)
+      await loadData()
+      setSuccess('Chave do plano atualizada com sucesso!')
+      setTimeout(() => setSuccess(''), 3000)
+    } finally {
+      setKeySaving(false)
+    }
+  }
+
+  const handleSavePlanFeatures = async (planId: string) => {
+    const edits = editedPlans[planId]
+    if (!edits) return
+    setSaving(planId)
+    try {
+      await supabase.from('plans').update(edits).eq('id', planId)
+      setSuccess('Configurações salvas!')
+      setTimeout(() => setSuccess(''), 3000)
+      await loadData()
+      setEditedPlans(prev => { const n = { ...prev }; delete n[planId]; return n })
+    } finally {
+      setSaving(null)
+    }
+  }
+
+  const updateFeature = (planId: string, key: string, value: boolean | number) => {
+    const plan = plans.find(p => p.id === planId)
+    if (!plan) return
+    const currentFeatures = plan.features || {}
+    setEditedPlans(prev => ({
       ...prev,
       [planId]: {
         ...prev[planId],
-        features: {
-          ...(prev[planId]?.features ?? {}),
-          [feature]: value,
-        } as PlanFeatures,
-      },
+        features: { ...currentFeatures, ...(prev[planId]?.features as object || {}), [key]: value }
+      }
     }))
   }
 
-  async function savePlan(plan: Plan) {
-    if (!actorProfile) return
-    setSavingPlan(plan.id)
-
-    const form = editForms[plan.id]
-    const { error } = await supabase
-      .from('plans')
-      .update({
-        api_limit_daily: form.api_limit_daily,
-        api_limit_monthly: form.api_limit_monthly,
-        features: form.features,
-      })
-      .eq('id', plan.id)
-
-    setSavingPlan(null)
-    if (!error) {
-      setSaveSuccess(plan.id)
-      setTimeout(() => setSaveSuccess(null), 2000)
-      await loadPlans()
-    }
+  const updateLimit = (planId: string, field: 'api_limit_daily' | 'api_limit_monthly', value: number) => {
+    setEditedPlans(prev => ({ ...prev, [planId]: { ...prev[planId], [field]: value } }))
   }
 
-  const getPlanStat = (planId: string): PlanStats =>
-    stats.find((s) => s.planId === planId) ?? { planId, userCount: 0, apiCallsToday: 0 }
+  const getKeyStatus = (planName: string) => planKeys.find(k => k.plan_name === planName)
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="flex gap-1">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="w-2 h-2 rounded-full bg-[#aa3bff] animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
-          ))}
-        </div>
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#aa3bff', borderTopColor: 'transparent' }} />
       </div>
     )
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-2 mb-6">
-        <CreditCard size={20} className="text-[#aa3bff]" />
-        <div>
-          <h1 className="text-xl font-bold text-white">Gerenciamento de Planos</h1>
-          <p className="text-sm text-[#6b6b8a]">Configure limites e recursos de cada plano</p>
+    <div className="p-6 space-y-8 max-w-4xl">
+      <div>
+        <h1 className="text-2xl font-bold text-white">Gerenciamento de Planos</h1>
+        <p className="mt-1 text-sm" style={{ color: '#6b6b8a' }}>Configure planos, funcionalidades e chaves de acesso</p>
+      </div>
+
+      {success && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-xl border text-sm" style={{ background: 'rgba(34,197,94,0.1)', borderColor: 'rgba(34,197,94,0.3)', color: '#4ade80' }}>
+          <CheckCircle className="w-4 h-4" /> {success}
+        </div>
+      )}
+
+      {/* ── PLAN KEYS SECTION ── */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <Shield className="w-5 h-5" style={{ color: '#aa3bff' }} />
+          <h2 className="text-lg font-semibold text-white">Chaves de Acesso por Plano</h2>
+        </div>
+        <p className="mb-4 text-sm" style={{ color: '#6b6b8a' }}>
+          Cada plano tem uma chave secreta. Os usuários inserem essa chave no cadastro para ativar o plano correspondente.
+          As chaves são armazenadas com hash bcrypt — nunca expostas.
+        </p>
+
+        <div className="grid gap-4 md:grid-cols-3">
+          {plans.map(plan => {
+            const keyStatus = getKeyStatus(plan.name)
+            const hasKey = keyStatus?.has_active_key ?? false
+            const isExpired = keyStatus?.is_expired ?? false
+            const expiresAt = keyStatus?.expires_at
+            const color = PLAN_COLORS[plan.name] || '#6b6b8a'
+
+            return (
+              <div key={plan.id} className="rounded-xl border p-5 space-y-4" style={{ background: '#0f0f1a', borderColor: '#1a1a2e' }}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-semibold px-2 py-1 rounded-full" style={{ background: `${color}22`, color }}>
+                      {plan.display_name}
+                    </span>
+                  </div>
+                  {hasKey && !isExpired && <CheckCircle className="w-4 h-4" style={{ color: '#4ade80' }} />}
+                  {isExpired && <AlertTriangle className="w-4 h-4" style={{ color: '#f59e0b' }} />}
+                  {!hasKey && <AlertTriangle className="w-4 h-4" style={{ color: '#ef4444' }} />}
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <div className={`w-2 h-2 rounded-full ${hasKey && !isExpired ? 'bg-green-400' : 'bg-red-400'}`} />
+                    <span className="text-xs" style={{ color: '#6b6b8a' }}>
+                      {!hasKey ? 'Sem chave ativa' : isExpired ? 'Chave expirada' : 'Chave ativa'}
+                    </span>
+                  </div>
+                  {expiresAt && (
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="w-3 h-3" style={{ color: '#6b6b8a' }} />
+                      <span className="text-xs" style={{ color: '#6b6b8a' }}>
+                        Expira: {new Date(expiresAt).toLocaleDateString('pt-BR')}
+                      </span>
+                    </div>
+                  )}
+                  {!expiresAt && hasKey && (
+                    <span className="text-xs" style={{ color: '#6b6b8a' }}>Sem expiração</span>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => openKeyModal(plan.name, plan.display_name)}
+                  className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all hover:opacity-90"
+                  style={{ background: `${color}22`, color, border: `1px solid ${color}44` }}
+                >
+                  <Key className="w-3.5 h-3.5" />
+                  {hasKey ? 'Trocar chave' : 'Definir chave'}
+                </button>
+              </div>
+            )
+          })}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {plans.map((plan) => {
-          const form = editForms[plan.id] ?? {}
-          const planStat = getPlanStat(plan.id)
-          const color = getPlanColor(plan.name)
-          const bgColor = getPlanBgColor(plan.name)
+      {/* ── PLAN FEATURES SECTION ── */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <RefreshCw className="w-5 h-5" style={{ color: '#6366f1' }} />
+          <h2 className="text-lg font-semibold text-white">Funcionalidades por Plano</h2>
+        </div>
 
-          return (
-            <Card key={plan.id} className="flex flex-col">
-              {/* Plan header */}
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-2.5">
-                  <div
-                    className="w-9 h-9 rounded-xl flex items-center justify-center"
-                    style={{ backgroundColor: bgColor }}
-                  >
-                    <CreditCard size={16} style={{ color }} />
+        <div className="space-y-3">
+          {plans.map(plan => {
+            const edits = editedPlans[plan.id] || {}
+            const features = { ...(plan.features || {}), ...(edits.features as object || {}) }
+            const isExpanded = expandedPlan === plan.id
+            const color = PLAN_COLORS[plan.name] || '#6b6b8a'
+            const hasChanges = !!editedPlans[plan.id]
+
+            const boolFeatures: [string, string][] = [
+              ['scriptGenerator', 'Gerador de Roteiros'],
+              ['copyGenerator', 'Gerador de Copy'],
+              ['videoAnalyzer', 'Análise de Vídeo'],
+              ['creativeIdeas', 'Ideias Criativas'],
+              ['winnersLibrary', 'Biblioteca de Winners'],
+              ['trendsRadar', 'Radar de Tendências'],
+              ['projectHistory', 'Histórico de Projetos'],
+            ]
+
+            const numFeatures: [string, string][] = [
+              ['maxScripts', 'Máx. Roteiros'],
+              ['maxCopies', 'Máx. Copies'],
+              ['maxAnalyses', 'Máx. Análises'],
+              ['maxIdeas', 'Máx. Ideias'],
+            ]
+
+            return (
+              <div key={plan.id} className="rounded-xl border overflow-hidden" style={{ background: '#0f0f1a', borderColor: '#1a1a2e' }}>
+                <button
+                  onClick={() => setExpandedPlan(isExpanded ? null : plan.id)}
+                  className="w-full flex items-center justify-between px-5 py-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-semibold px-2.5 py-1 rounded-full" style={{ background: `${color}22`, color }}>
+                      {plan.display_name}
+                    </span>
+                    {hasChanges && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(251,191,36,0.15)', color: '#fbbf24' }}>Não salvo</span>}
                   </div>
-                  <div>
-                    <h3 className="text-sm font-bold" style={{ color }}>{plan.display_name}</h3>
-                    <p className="text-[10px] text-[#6b6b8a]">{plan.name}</p>
+                  {isExpanded ? <ChevronUp className="w-4 h-4" style={{ color: '#6b6b8a' }} /> : <ChevronDown className="w-4 h-4" style={{ color: '#6b6b8a' }} />}
+                </button>
+
+                {isExpanded && (
+                  <div className="px-5 pb-5 space-y-5 border-t" style={{ borderColor: '#1a1a2e' }}>
+                    {/* API Limits */}
+                    <div className="pt-4 grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium mb-1" style={{ color: '#6b6b8a' }}>Limite diário de API</label>
+                        <input type="number"
+                          value={(edits as { api_limit_daily?: number }).api_limit_daily ?? plan.api_limit_daily}
+                          onChange={e => updateLimit(plan.id, 'api_limit_daily', +e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
+                          style={{ background: '#08080f', borderColor: '#1a1a2e', color: '#c4c4d4' }}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1" style={{ color: '#6b6b8a' }}>Limite mensal de API</label>
+                        <input type="number"
+                          value={(edits as { api_limit_monthly?: number }).api_limit_monthly ?? plan.api_limit_monthly}
+                          onChange={e => updateLimit(plan.id, 'api_limit_monthly', +e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
+                          style={{ background: '#08080f', borderColor: '#1a1a2e', color: '#c4c4d4' }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Boolean features */}
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium" style={{ color: '#6b6b8a' }}>Funcionalidades</p>
+                      {boolFeatures.map(([key, label]) => (
+                        <label key={key} className="flex items-center justify-between py-1.5">
+                          <span className="text-sm" style={{ color: '#c4c4d4' }}>{label}</span>
+                          <div
+                            onClick={() => updateFeature(plan.id, key, !(features as unknown as Record<string, boolean>)[key])}
+                            className="w-10 h-5 rounded-full cursor-pointer transition-colors relative"
+                            style={{ background: (features as unknown as Record<string, boolean>)[key] ? '#aa3bff' : '#1a1a2e' }}
+                          >
+                            <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all"
+                              style={{ left: (features as unknown as Record<string, boolean>)[key] ? '1.375rem' : '0.125rem' }} />
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+
+                    {/* Numeric limits */}
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium" style={{ color: '#6b6b8a' }}>Limites numéricos (-1 = ilimitado)</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        {numFeatures.map(([key, label]) => (
+                          <div key={key}>
+                            <label className="block text-xs mb-1" style={{ color: '#6b6b8a' }}>{label}</label>
+                            <input type="number"
+                              value={(features as unknown as Record<string, number>)[key] ?? -1}
+                              onChange={e => updateFeature(plan.id, key, +e.target.value)}
+                              className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
+                              style={{ background: '#08080f', borderColor: '#1a1a2e', color: '#c4c4d4' }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleSavePlanFeatures(plan.id)}
+                      disabled={saving === plan.id || !hasChanges}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
+                      style={{ background: '#aa3bff22', color: '#aa3bff', border: '1px solid #aa3bff44' }}
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      {saving === plan.id ? 'Salvando...' : 'Salvar alterações'}
+                    </button>
                   </div>
-                </div>
-                {saveSuccess === plan.id && (
-                  <span className="flex items-center gap-1 text-xs text-emerald-400">
-                    <Check size={12} />
-                    Salvo!
-                  </span>
                 )}
               </div>
-
-              {/* Stats */}
-              <div className="grid grid-cols-2 gap-2 mb-5">
-                <div className="rounded-lg bg-[rgba(255,255,255,0.03)] p-2.5 text-center">
-                  <p className="text-lg font-bold text-white">{planStat.userCount}</p>
-                  <p className="text-[10px] text-[#6b6b8a]">Usuários</p>
-                </div>
-                <div className="rounded-lg bg-[rgba(255,255,255,0.03)] p-2.5 text-center">
-                  <p className="text-lg font-bold text-white">{planStat.apiCallsToday}</p>
-                  <p className="text-[10px] text-[#6b6b8a]">Calls hoje</p>
-                </div>
-              </div>
-
-              {/* Limits */}
-              <div className="flex flex-col gap-2.5 mb-5">
-                <p className="text-xs font-semibold text-[#c4c4d4]">Limites de API</p>
-                <div className="flex flex-col gap-2">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] text-[#6b6b8a]">Limite diário</label>
-                    <input
-                      type="number"
-                      min={1}
-                      value={form.api_limit_daily ?? plan.api_limit_daily}
-                      onChange={(e) => updateForm(plan.id, 'api_limit_daily', Number(e.target.value))}
-                      className="w-full px-3 py-2 text-sm text-[#c4c4d4] bg-[rgba(15,15,26,0.8)] border border-[rgba(170,59,255,0.12)] rounded-lg outline-none focus:border-[rgba(170,59,255,0.5)]"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[10px] text-[#6b6b8a]">Limite mensal</label>
-                    <input
-                      type="number"
-                      min={1}
-                      value={form.api_limit_monthly ?? plan.api_limit_monthly}
-                      onChange={(e) => updateForm(plan.id, 'api_limit_monthly', Number(e.target.value))}
-                      className="w-full px-3 py-2 text-sm text-[#c4c4d4] bg-[rgba(15,15,26,0.8)] border border-[rgba(170,59,255,0.12)] rounded-lg outline-none focus:border-[rgba(170,59,255,0.5)]"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Features */}
-              <div className="flex flex-col gap-2 mb-5">
-                <p className="text-xs font-semibold text-[#c4c4d4]">Recursos</p>
-                {BOOLEAN_FEATURES.map((feat) => {
-                  const val = (form.features as PlanFeatures)?.[feat] ?? plan.features[feat]
-                  const isEnabled = Boolean(val)
-                  return (
-                    <div key={feat} className="flex items-center justify-between py-1">
-                      <span className="text-xs text-[#6b6b8a]">{getFeatureLabel(feat)}</span>
-                      <button
-                        onClick={() => updateFeature(plan.id, feat, !isEnabled)}
-                        className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border transition-all ${
-                          isEnabled
-                            ? 'bg-[rgba(34,197,94,0.1)] border-[rgba(34,197,94,0.2)] text-emerald-400'
-                            : 'bg-[rgba(239,68,68,0.08)] border-[rgba(239,68,68,0.15)] text-red-400'
-                        }`}
-                      >
-                        {isEnabled ? <Check size={9} /> : <X size={9} />}
-                        {isEnabled ? 'Ativo' : 'Inativo'}
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-
-              {/* Number limits */}
-              <div className="flex flex-col gap-2 mb-5">
-                <p className="text-xs font-semibold text-[#c4c4d4]">Limites de Conteúdo</p>
-                {NUMBER_FEATURES.map((feat) => {
-                  const val = ((form.features as PlanFeatures)?.[feat] ?? plan.features[feat]) as number
-                  return (
-                    <div key={feat} className="flex items-center gap-2">
-                      <label className="text-[10px] text-[#6b6b8a] flex-1">{getFeatureLabel(feat)}</label>
-                      <input
-                        type="number"
-                        min={-1}
-                        value={val}
-                        onChange={(e) => updateFeature(plan.id, feat, Number(e.target.value))}
-                        className="w-16 px-2 py-1 text-xs text-[#c4c4d4] bg-[rgba(15,15,26,0.8)] border border-[rgba(170,59,255,0.12)] rounded-md outline-none focus:border-[rgba(170,59,255,0.5)] text-right"
-                        title="-1 = ilimitado"
-                      />
-                    </div>
-                  )
-                })}
-                <p className="text-[9px] text-[#6b6b8a]">-1 = ilimitado</p>
-              </div>
-
-              <Button
-                onClick={() => savePlan(plan)}
-                loading={savingPlan === plan.id}
-                className="w-full mt-auto"
-                variant="secondary"
-              >
-                <Save size={13} />
-                Salvar Alterações
-              </Button>
-            </Card>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
 
-      {/* Note about plan secrets */}
-      <Card className="mt-6 border-[rgba(234,179,8,0.2)]">
-        <div className="flex items-start gap-3">
-          <AlertTriangle size={16} className="text-yellow-400 mt-0.5 shrink-0" />
-          <div>
-            <p className="text-sm font-semibold text-yellow-400 mb-1">Segredos de plano</p>
-            <p className="text-xs text-[#6b6b8a] leading-relaxed">
-              Os segredos internos dos planos (chaves de API de serviços externos) são armazenados
-              exclusivamente como variáveis de ambiente das Edge Functions do Supabase e nunca são
-              expostos no frontend. Para atualizá-los, acesse o painel do Supabase → Edge Functions →
-              Variáveis de Ambiente.
-            </p>
+      {/* ── PLAN KEY MODAL ── */}
+      {keyModal?.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.8)' }}>
+          <div className="w-full max-w-md rounded-2xl border p-6 space-y-5" style={{ background: '#0f0f1a', borderColor: '#1a1a2e' }}>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Chave do plano {keyModal.planDisplay}</h3>
+              <p className="mt-1 text-sm" style={{ color: '#6b6b8a' }}>
+                A nova chave será armazenada com hash bcrypt. A chave anterior será invalidada imediatamente.
+              </p>
+            </div>
+
+            {keyError && (
+              <div className="px-4 py-3 rounded-xl text-sm border" style={{ background: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.3)', color: '#f87171' }}>
+                {keyError}
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1.5" style={{ color: '#c4c4d4' }}>Nova chave do plano</label>
+                <div className="relative">
+                  <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#6b6b8a' }} />
+                  <input
+                    type={showNewKey ? 'text' : 'password'}
+                    value={newKey} onChange={e => setNewKey(e.target.value)}
+                    placeholder="Mínimo 8 caracteres"
+                    className="w-full pl-10 pr-10 py-2.5 rounded-xl border text-sm outline-none font-mono"
+                    style={{ background: '#08080f', borderColor: '#1a1a2e', color: '#c4c4d4' }}
+                  />
+                  <button type="button" onClick={() => setShowNewKey(p => !p)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: '#6b6b8a' }}>
+                    {showNewKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1.5" style={{ color: '#c4c4d4' }}>
+                  Data de expiração
+                  <span className="ml-1 text-xs" style={{ color: '#6b6b8a' }}>(opcional)</span>
+                </label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#6b6b8a' }} />
+                  <input type="datetime-local"
+                    value={keyExpiresAt} onChange={e => setKeyExpiresAt(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm outline-none"
+                    style={{ background: '#08080f', borderColor: '#1a1a2e', color: '#c4c4d4' }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1.5" style={{ color: '#c4c4d4' }}>
+                  Observações
+                  <span className="ml-1 text-xs" style={{ color: '#6b6b8a' }}>(opcional)</span>
+                </label>
+                <input type="text"
+                  value={keyNotes} onChange={e => setKeyNotes(e.target.value)}
+                  placeholder="ex: Renovação mensal março/2025"
+                  className="w-full px-4 py-2.5 rounded-xl border text-sm outline-none"
+                  style={{ background: '#08080f', borderColor: '#1a1a2e', color: '#c4c4d4' }}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => setKeyModal(null)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all"
+                style={{ borderColor: '#1a1a2e', color: '#6b6b8a' }}>
+                Cancelar
+              </button>
+              <button onClick={handleSetPlanKey} disabled={keySaving || newKey.length < 8}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-all disabled:opacity-60"
+                style={{ background: 'linear-gradient(135deg, #aa3bff, #6366f1)', color: '#fff' }}>
+                {keySaving ? 'Salvando...' : 'Salvar chave'}
+              </button>
+            </div>
           </div>
         </div>
-      </Card>
+      )}
     </div>
   )
 }

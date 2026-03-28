@@ -32,6 +32,10 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   'api.limit_reached': 'Limite atingido',
   'profile.updated': 'Perfil atualizado',
   'password.changed': 'Senha alterada',
+  'plan_key_validated': 'Chave de plano validada',
+  'plan_key_failed': 'Chave de plano falhou',
+  'plan_key_rotated': 'Chave de plano rotacionada',
+  'email_blocked': 'Email bloqueado',
 }
 
 type ActionColor = 'blue' | 'gray' | 'green' | 'yellow' | 'red' | 'purple' | 'default'

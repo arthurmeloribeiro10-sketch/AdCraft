@@ -4,6 +4,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { audit } from '../lib/audit'
 import { checkAndResetUsage } from '../lib/apiUsage'
 import { checkFeatureAccess, checkApiQuota } from '../lib/permissions'
+import { validatePlanKey as validatePlanKeyLib, checkRegistrationAllowed, planKeyErrorMessage } from '../lib/planKey'
 import type { UserProfile, PlanFeatures, AuthContextValue } from '../types/auth'
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -247,7 +248,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (
     email: string,
     password: string,
-    fullName?: string
+    fullName?: string,
+    planKey?: string,
+    planName?: string
   ): Promise<{ error: string | null }> => {
     if (!isSupabaseConfigured) {
       setUser(DEV_USER)
@@ -256,6 +259,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
+      // Check registration allowed
+      const regCheck = await checkRegistrationAllowed(email)
+      if (!regCheck.allowed) {
+        if (regCheck.reason === 'registration_disabled') {
+          return { error: 'O cadastro está temporariamente desativado pelo administrador.' }
+        }
+        if (regCheck.reason === 'email_blocked') {
+          return { error: 'Este email não tem permissão para se cadastrar.' }
+        }
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -273,12 +287,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (data.user) {
         await audit.accountCreated(data.user.id, email)
+
+        // If plan key provided, validate it to assign the plan
+        if (planKey && planName) {
+          const pkResult = await validatePlanKeyLib(planName, planKey)
+          if (!pkResult.success) {
+            // User created but plan key failed — sign out and return error
+            await supabase.auth.signOut()
+            return { error: `Conta criada mas chave do plano inválida: ${planKeyErrorMessage(pkResult.error)}. Faça login e tente novamente.` }
+          }
+        }
       }
 
       return { error: null }
     } catch {
       return { error: 'Erro inesperado. Tente novamente.' }
     }
+  }
+
+  const validatePlanKey = async (
+    planName: string,
+    planKey: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    const result = await validatePlanKeyLib(planName, planKey)
+    if (result.success) {
+      // Refresh profile so plan change is reflected
+      await refreshProfile()
+      return { success: true }
+    }
+    return { success: false, error: planKeyErrorMessage(result.error) }
   }
 
   const signOut = async (): Promise<void> => {
@@ -320,6 +357,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signUp,
         signOut,
         refreshProfile,
+        validatePlanKey,
       }}
     >
       {children}
