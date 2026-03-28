@@ -140,41 +140,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // Check existing session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        setUser(session.user)
-        let p = await fetchProfile(session.user.id)
-        if (!p) p = await upsertProfile(session.user)
-        if (p) {
-          const refreshed = await checkAndResetUsage(p)
-          setProfile(refreshed)
-        }
-      }
-      setIsLoading(false)
-    })
+    let mounted = true
 
-    // Subscribe to auth state changes
+    // Initial session check using getUser() — avoids localStorage lock issues
+    const initAuth = async () => {
+      try {
+        const { data: { user: currentUser } } = await supabase.auth.getUser()
+        if (!mounted) return
+        if (currentUser) {
+          setUser(currentUser)
+          let p = await fetchProfile(currentUser.id)
+          if (!p) p = await upsertProfile(currentUser)
+          if (p) {
+            const refreshed = await checkAndResetUsage(p)
+            if (mounted) setProfile(refreshed)
+          }
+        }
+      } catch (err) {
+        console.error('AuthContext init error:', err)
+      } finally {
+        if (mounted) setIsLoading(false)
+      }
+    }
+
+    initAuth()
+
+    // Subscribe for subsequent auth events (login/logout/token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
+          if (!mounted) return
           setUser(session.user)
-          let p = await fetchProfile(session.user.id)
-          if (!p) p = await upsertProfile(session.user)
-          if (p) {
-            const refreshed = await checkAndResetUsage(p)
-            setProfile(refreshed)
+          try {
+            let p = await fetchProfile(session.user.id)
+            if (!p) p = await upsertProfile(session.user)
+            if (p) {
+              const refreshed = await checkAndResetUsage(p)
+              if (mounted) setProfile(refreshed)
+            }
+          } catch (err) {
+            console.error('AuthContext SIGNED_IN error:', err)
           }
         } else if (event === 'SIGNED_OUT') {
+          if (!mounted) return
           setUser(null)
           setProfile(null)
+          setIsLoading(false)
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-          setUser(session.user)
+          if (mounted) setUser(session.user)
         }
       }
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   const signIn = async (

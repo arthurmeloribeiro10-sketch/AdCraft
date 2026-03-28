@@ -45,6 +45,7 @@ export default function AdminDashboard() {
 
   const loadData = useCallback(async () => {
     setLoading(true)
+    try {
 
     // Load profiles + plans
     const { data: profiles } = await supabase
@@ -109,7 +110,11 @@ export default function AdminDashboard() {
 
     if (logs) setRecentLogs(logs as AuditLog[])
 
-    setLoading(false)
+    } catch (err) {
+      console.error('AdminDashboard loadData error:', err)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => {

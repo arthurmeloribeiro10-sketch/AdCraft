@@ -48,24 +48,29 @@ export default function PlanManagement() {
 
   const loadPlans = useCallback(async () => {
     setLoading(true)
-    const { data: planData } = await supabase
-      .from('plans')
-      .select('*')
-      .order('sort_order')
+    try {
+      const { data: planData } = await supabase
+        .from('plans')
+        .select('*')
+        .order('sort_order')
 
-    if (planData) {
-      setPlans(planData as Plan[])
-      const forms: Record<string, Partial<Plan>> = {}
-      for (const p of planData) {
-        forms[p.id] = {
-          api_limit_daily: p.api_limit_daily,
-          api_limit_monthly: p.api_limit_monthly,
-          features: { ...p.features },
+      if (planData) {
+        setPlans(planData as Plan[])
+        const forms: Record<string, Partial<Plan>> = {}
+        for (const p of planData) {
+          forms[p.id] = {
+            api_limit_daily: p.api_limit_daily,
+            api_limit_monthly: p.api_limit_monthly,
+            features: { ...p.features },
+          }
         }
+        setEditForms(forms)
       }
-      setEditForms(forms)
+    } catch (err) {
+      console.error('loadPlans error:', err)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }, [])
 
   const loadStats = useCallback(async () => {

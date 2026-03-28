@@ -111,18 +111,23 @@ export default function UserManagement() {
     if (filterPlan) query = query.eq('plan_id', filterPlan)
     if (filterRole) query = query.eq('role', filterRole)
 
-    const { data, count, error } = await query
+    try {
+      const { data, count, error } = await query
 
-    if (!error && data) {
-      setUsers(
-        data.map((u) => ({
-          ...u,
-          plan: Array.isArray(u.plan) ? u.plan[0] : u.plan ?? null,
-        })) as UserWithPlan[]
-      )
-      setTotal(count ?? 0)
+      if (!error && data) {
+        setUsers(
+          data.map((u) => ({
+            ...u,
+            plan: Array.isArray(u.plan) ? u.plan[0] : u.plan ?? null,
+          })) as UserWithPlan[]
+        )
+        setTotal(count ?? 0)
+      }
+    } catch (err) {
+      console.error('loadUsers error:', err)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }, [page, search, filterPlan, filterRole])
 
   useEffect(() => {

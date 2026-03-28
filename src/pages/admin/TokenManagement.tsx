@@ -80,9 +80,14 @@ export default function TokenManagement() {
       query = query.eq('user_id', filterUserId)
     }
 
-    const { data } = await query
-    if (data) setTokens(data as TokenWithUser[])
-    setLoading(false)
+    try {
+      const { data } = await query
+      if (data) setTokens(data as TokenWithUser[])
+    } catch (err) {
+      console.error('loadTokens error:', err)
+    } finally {
+      setLoading(false)
+    }
   }, [filterUserId])
 
   const loadUsers = useCallback(async () => {

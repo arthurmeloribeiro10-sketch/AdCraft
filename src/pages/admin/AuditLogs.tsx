@@ -112,13 +112,17 @@ export default function AuditLogs() {
       query = query.lt('created_at', toDate.toISOString())
     }
 
-    const { data, count } = await query
-
-    if (data) {
-      setLogs(data as AuditLog[])
-      setTotal(count ?? 0)
+    try {
+      const { data, count } = await query
+      if (data) {
+        setLogs(data as AuditLog[])
+        setTotal(count ?? 0)
+      }
+    } catch (err) {
+      console.error('loadLogs error:', err)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }, [page, searchEmail, filterAction, filterDateFrom, filterDateTo])
 
   useEffect(() => {
