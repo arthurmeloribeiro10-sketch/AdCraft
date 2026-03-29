@@ -67,35 +67,39 @@ export default function Header({ onOpenSettings }: HeaderProps) {
 
       {/* Right side */}
       <div className="flex items-center gap-3">
-        {/* AI Status badge */}
-        <button
-          onClick={onOpenSettings}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[rgba(15,15,26,0.8)] border border-[rgba(170,59,255,0.15)] hover:border-[rgba(170,59,255,0.35)] transition-colors cursor-pointer"
-          title="Configurar chave da OpenAI"
-        >
-          <Cpu size={13} className="text-[#aa3bff]" />
-          <span className="text-xs text-[#c4c4d4] font-medium">AI</span>
-          {aiReady ? (
-            <span className="flex items-center gap-1 text-xs text-emerald-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Pronto
-            </span>
-          ) : (
-            <span className="flex items-center gap-1 text-xs text-red-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
-              Config.
-            </span>
-          )}
-        </button>
+        {/* AI Status badge — admin only */}
+        {isAdmin && (
+          <button
+            onClick={onOpenSettings}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[rgba(15,15,26,0.8)] border border-[rgba(170,59,255,0.15)] hover:border-[rgba(170,59,255,0.35)] transition-colors cursor-pointer"
+            title="Configurar chave da OpenAI"
+          >
+            <Cpu size={13} className="text-[#aa3bff]" />
+            <span className="text-xs text-[#c4c4d4] font-medium">AI</span>
+            {aiReady ? (
+              <span className="flex items-center gap-1 text-xs text-emerald-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Pronto
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-xs text-red-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                Config.
+              </span>
+            )}
+          </button>
+        )}
 
-        {/* Settings button */}
-        <button
-          onClick={onOpenSettings}
-          className="w-7 h-7 rounded-lg flex items-center justify-center text-[#6b6b8a] hover:text-[#c4c4d4] hover:bg-[rgba(255,255,255,0.05)] transition-colors"
-          title="Configurações"
-        >
-          <Settings size={15} />
-        </button>
+        {/* Settings button — admin only */}
+        {isAdmin && (
+          <button
+            onClick={onOpenSettings}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-[#6b6b8a] hover:text-[#c4c4d4] hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+            title="Configurações"
+          >
+            <Settings size={15} />
+          </button>
+        )}
 
         {/* User dropdown */}
         <div className="relative" ref={dropdownRef}>
