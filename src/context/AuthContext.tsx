@@ -180,18 +180,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
+          // Only set the user object here — profile is loaded explicitly in signIn/signUp
+          // to avoid a race condition where this handler fetches a stale Starter profile
+          // before validatePlanKeyAuto has updated the DB to Pro/Elite.
           if (!mounted) return
           setUser(session.user)
-          try {
-            let p = await fetchProfile(session.user.id)
-            if (!p) p = await upsertProfile(session.user)
-            if (p) {
-              const refreshed = await checkAndResetUsage(p)
-              if (mounted) setProfile(refreshed)
-            }
-          } catch (err) {
-            console.error('AuthContext SIGNED_IN error:', err)
-          }
         } else if (event === 'SIGNED_OUT') {
           if (!mounted) return
           setUser(null)
@@ -236,6 +229,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await supabase.auth.signOut()
           return { error: 'Sua conta foi desativada. Entre em contato com o suporte.' }
         }
+
+        // Load profile explicitly so plan/features are always up-to-date
+        await refreshProfile()
       }
 
       return { error: null }
