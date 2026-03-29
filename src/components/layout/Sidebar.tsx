@@ -30,15 +30,43 @@ interface NavItem {
   feature?: keyof PlanFeatures
 }
 
-const navItems: NavItem[] = [
-  { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
-  { label: 'Gerador de Roteiros', icon: FileText, path: '/roteiros', feature: 'scriptGenerator' },
-  { label: 'Gerador de Copy', icon: PenTool, path: '/copy', feature: 'copyGenerator' },
-  { label: 'Analisador de Vídeo', icon: Video, path: '/video', feature: 'videoAnalyzer' },
-  { label: 'Ideias de Criativos', icon: Lightbulb, path: '/ideias', feature: 'creativeIdeas' },
-  { label: 'Biblioteca de Anúncios', icon: BookOpen, path: '/biblioteca', feature: 'winnersLibrary' },
-  { label: 'Radar de Tendências', icon: TrendingUp, path: '/tendencias', feature: 'trendsRadar' },
-  { label: 'Histórico', icon: History, path: '/historico', feature: 'projectHistory' },
+interface NavSection {
+  plan: 'starter' | 'pro' | 'elite'
+  label: string
+  color: string
+  items: NavItem[]
+}
+
+const navSections: NavSection[] = [
+  {
+    plan: 'starter',
+    label: 'Starter',
+    color: '#6b6b8a',
+    items: [
+      { label: 'Dashboard',          icon: LayoutDashboard, path: '/' },
+      { label: 'Gerador de Roteiros', icon: FileText,        path: '/roteiros',  feature: 'scriptGenerator' },
+      { label: 'Gerador de Copy',     icon: PenTool,         path: '/copy',      feature: 'copyGenerator' },
+      { label: 'Ideias de Criativos', icon: Lightbulb,       path: '/ideias',    feature: 'creativeIdeas' },
+      { label: 'Histórico',           icon: History,         path: '/historico', feature: 'projectHistory' },
+    ],
+  },
+  {
+    plan: 'pro',
+    label: 'Pro',
+    color: '#6366f1',
+    items: [
+      { label: 'Biblioteca de Anúncios', icon: BookOpen, path: '/biblioteca', feature: 'winnersLibrary' },
+    ],
+  },
+  {
+    plan: 'elite',
+    label: 'Elite',
+    color: '#aa3bff',
+    items: [
+      { label: 'Radar de Tendências', icon: TrendingUp, path: '/tendencias', feature: 'trendsRadar' },
+      { label: 'Analisador de Vídeo', icon: Video,      path: '/video',      feature: 'videoAnalyzer' },
+    ],
+  },
 ]
 
 export default function Sidebar() {
@@ -80,35 +108,62 @@ export default function Sidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-3 px-2">
-        {navItems.map((item) => {
-          const Icon = item.icon
-          const active = isActivePath(item.path)
-          const hasAccess = item.feature ? canAccess(item.feature) : true
-          const isLocked = !hasAccess && !isAdmin
+      <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-1">
+        {navSections.map((section) => {
+          const allLocked = !isAdmin && section.items.every(
+            item => item.feature ? !canAccess(item.feature) : false
+          )
 
           return (
-            <button
-              key={item.path}
-              onClick={() => handleNav(item)}
-              className={cn(
-                'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150 mb-0.5 text-left',
-                active
-                  ? 'bg-[rgba(170,59,255,0.12)] text-white border-l-2 border-[#aa3bff] pl-[10px] shadow-[0_0_16px_rgba(170,59,255,0.08)]'
-                  : 'text-[#6b6b8a] hover:text-[#c4c4d4] hover:bg-[rgba(255,255,255,0.04)] border-l-2 border-transparent'
-              )}
-            >
-              <Icon
-                size={16}
-                className={active ? 'text-[#aa3bff]' : isLocked ? 'text-[#6b6b8a] opacity-50' : 'text-[#6b6b8a]'}
-              />
-              <span className={cn('truncate flex-1', isLocked && 'opacity-60')}>
-                {item.label}
-              </span>
-              {isLocked && (
-                <Lock size={11} className="text-[#6b6b8a] opacity-60 shrink-0" />
-              )}
-            </button>
+            <div key={section.plan}>
+              {/* Section label */}
+              <div className="flex items-center gap-1.5 px-3 py-1 mt-1">
+                <span
+                  className="text-[10px] font-semibold uppercase tracking-widest"
+                  style={{ color: allLocked && !isAdmin ? '#3a3a55' : section.color }}
+                >
+                  {section.label}
+                </span>
+                {allLocked && !isAdmin && (
+                  <Lock size={9} style={{ color: '#3a3a55' }} />
+                )}
+              </div>
+
+              {/* Items */}
+              {section.items.map((item) => {
+                const Icon = item.icon
+                const active = isActivePath(item.path)
+                const hasAccess = item.feature ? canAccess(item.feature) : true
+                const isLocked = !hasAccess && !isAdmin
+
+                return (
+                  <button
+                    key={item.path}
+                    onClick={() => handleNav(item)}
+                    className={cn(
+                      'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-150 mb-0.5 text-left',
+                      active
+                        ? 'bg-[rgba(170,59,255,0.12)] text-white border-l-2 border-[#aa3bff] pl-[10px] shadow-[0_0_16px_rgba(170,59,255,0.08)]'
+                        : isLocked
+                          ? 'text-[#3a3a55] border-l-2 border-transparent cursor-pointer hover:bg-[rgba(255,255,255,0.02)]'
+                          : 'text-[#6b6b8a] hover:text-[#c4c4d4] hover:bg-[rgba(255,255,255,0.04)] border-l-2 border-transparent'
+                    )}
+                  >
+                    <Icon
+                      size={15}
+                      className={active ? 'text-[#aa3bff]' : isLocked ? 'opacity-30' : ''}
+                      style={!active && !isLocked ? { color: section.color, opacity: 0.7 } : undefined}
+                    />
+                    <span className={cn('truncate flex-1 text-xs', isLocked && 'opacity-40')}>
+                      {item.label}
+                    </span>
+                    {isLocked && (
+                      <Lock size={10} className="shrink-0 opacity-30" />
+                    )}
+                  </button>
+                )
+              })}
+            </div>
           )
         })}
       </nav>
