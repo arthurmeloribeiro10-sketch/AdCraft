@@ -26,10 +26,9 @@ export function checkApiQuota(profile: UserProfile | null): boolean {
   const plan = profile.plan
   if (!plan) return false
 
-  // Check daily limit
-  if (profile.api_calls_today >= plan.api_limit_daily) return false
-  // Check monthly limit
-  if (profile.api_calls_month >= plan.api_limit_monthly) return false
+  // -1 means unlimited (Elite plan)
+  if (plan.api_limit_daily !== -1 && profile.api_calls_today >= plan.api_limit_daily) return false
+  if (plan.api_limit_monthly !== -1 && profile.api_calls_month >= plan.api_limit_monthly) return false
 
   return true
 }
@@ -96,12 +95,12 @@ export function getApiQuotaMessage(profile: UserProfile | null): string {
   const plan = profile.plan
   if (!plan) return 'Você não possui um plano ativo.'
 
-  if (profile.api_calls_today >= plan.api_limit_daily) {
-    return `Você atingiu o limite diário de ${plan.api_limit_daily} chamadas de API. Seu limite será redefinido amanhã.`
+  if (plan.api_limit_daily !== -1 && profile.api_calls_today >= plan.api_limit_daily) {
+    return `Você atingiu o limite diário de ${plan.api_limit_daily} tokens. Seu limite será redefinido amanhã.`
   }
 
-  if (profile.api_calls_month >= plan.api_limit_monthly) {
-    return `Você atingiu o limite mensal de ${plan.api_limit_monthly} chamadas de API. Faça um upgrade para o plano Elite para aumentar seu limite.`
+  if (plan.api_limit_monthly !== -1 && profile.api_calls_month >= plan.api_limit_monthly) {
+    return `Você atingiu o limite mensal de ${plan.api_limit_monthly} tokens. Faça um upgrade de plano para continuar.`
   }
 
   return ''
