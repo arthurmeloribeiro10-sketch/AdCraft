@@ -24,6 +24,7 @@ import Badge from '../components/ui/Badge'
 import PlanBadge from '../components/ui/PlanBadge'
 import UsageMeter from '../components/ui/UsageMeter'
 import { isSupabaseConfigured } from '../lib/supabase'
+import { validatePlanKeyAuto, planKeyErrorMessage } from '../lib/planKey'
 
 async function sha256(text: string): Promise<string> {
   const encoder = new TextEncoder()
@@ -47,6 +48,13 @@ export default function UserProfile() {
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileSuccess, setProfileSuccess] = useState(false)
   const [profileError, setProfileError] = useState('')
+
+  // Plan key activation
+  const [planKey, setPlanKey] = useState('')
+  const [showPlanKey, setShowPlanKey] = useState(false)
+  const [planKeyLoading, setPlanKeyLoading] = useState(false)
+  const [planKeySuccess, setPlanKeySuccess] = useState('')
+  const [planKeyError, setPlanKeyError] = useState('')
 
   // Password change
   const [newPass, setNewPass] = useState('')
@@ -105,6 +113,23 @@ export default function UserProfile() {
       await audit.profileUpdated(profile.id, profile.email, { full_name: fullName.trim() })
       await refreshProfile()
       setTimeout(() => setProfileSuccess(false), 3000)
+    }
+  }
+
+  async function activatePlanKey() {
+    if (!planKey.trim()) { setPlanKeyError('Informe a chave do plano.'); return }
+    setPlanKeyError('')
+    setPlanKeySuccess('')
+    setPlanKeyLoading(true)
+    const result = await validatePlanKeyAuto(planKey.trim())
+    setPlanKeyLoading(false)
+    if (result.success) {
+      await refreshProfile()
+      setPlanKeySuccess(`Plano ${result.planDisplay ?? result.planName} ativado com sucesso!`)
+      setPlanKey('')
+      setTimeout(() => setPlanKeySuccess(''), 5000)
+    } else {
+      setPlanKeyError(planKeyErrorMessage(result.error))
     }
   }
 
@@ -218,6 +243,52 @@ export default function UserProfile() {
           <PlanBadge plan={profile.plan?.name} variant="full" />
         </div>
         <UsageMeter />
+      </Card>
+
+      {/* Plan key activation */}
+      <Card className="mb-4">
+        <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+          <Key size={14} className="text-[#aa3bff]" />
+          Ativar Plano
+        </h3>
+        <p className="text-xs text-[#6b6b8a] mb-3">
+          Insira a chave do plano para ativar ou fazer upgrade do seu acesso.
+        </p>
+        <div className="flex flex-col gap-3">
+          <div className="relative">
+            <Input
+              label="Chave do plano"
+              type={showPlanKey ? 'text' : 'password'}
+              value={planKey}
+              onChange={(e) => setPlanKey(e.target.value)}
+              placeholder="Chave fornecida pelo administrador"
+              className="font-mono"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPlanKey((v) => !v)}
+              className="absolute right-3 top-[34px] text-[#6b6b8a] hover:text-[#c4c4d4] transition-colors"
+            >
+              {showPlanKey ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+          </div>
+          {planKeyError && (
+            <p className="text-xs text-red-400 flex items-center gap-1.5">
+              <AlertCircle size={12} />
+              {planKeyError}
+            </p>
+          )}
+          {planKeySuccess && (
+            <p className="text-xs text-emerald-400 flex items-center gap-1.5">
+              <Check size={12} />
+              {planKeySuccess}
+            </p>
+          )}
+          <Button onClick={activatePlanKey} loading={planKeyLoading} className="w-fit">
+            <Key size={13} />
+            Ativar Plano
+          </Button>
+        </div>
       </Card>
 
       {/* Profile info */}

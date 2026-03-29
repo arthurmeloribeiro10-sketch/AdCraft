@@ -136,7 +136,7 @@ export async function validatePlanKeyAuto(
     p_key: planKey,
   })
   if (error) {
-    console.error('validatePlanKeyAuto error:', error)
+    console.error('validatePlanKeyAuto error:', error.message, '| code:', error.code, '| details:', error.details, '| hint:', error.hint)
     return { success: false, error: 'invalid_key' }
   }
   const result = data as { success: boolean; plan_name?: string; plan_display?: string; error?: PlanKeyError }
