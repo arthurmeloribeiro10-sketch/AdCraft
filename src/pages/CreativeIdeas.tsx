@@ -6,6 +6,8 @@ import type { CreativeIdea } from '../types'
 import { useStore } from '../store/useStore'
 import { generateId } from '../lib/utils'
 import { useNavigate } from 'react-router-dom'
+import { consumeTokens, tokenLimitMessage } from '../lib/tokens'
+import { useAuth } from '../context/AuthContext'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import Input from '../components/ui/Input'
@@ -22,6 +24,7 @@ const STYLE_COLORS: Record<string, string> = {
 
 export default function CreativeIdeas() {
   const { addIdea } = useStore()
+  const { profile } = useAuth()
   const navigate = useNavigate()
   const [niche, setNiche] = useState('')
   const [product, setProduct] = useState('')
@@ -36,6 +39,11 @@ export default function CreativeIdeas() {
     setIdeas([])
     setError(null)
     try {
+      const tokenResult = await consumeTokens('creativeIdeas')
+      if (!tokenResult.success) {
+        setError(tokenLimitMessage(tokenResult, profile?.plan?.display_name))
+        return
+      }
       const res = await generateCreativeIdeas({ niche, product, audience })
       setIdeas(res)
       res.forEach((idea) => addIdea({ ...idea, id: generateId(), user_id: '', created_at: new Date().toISOString() }))

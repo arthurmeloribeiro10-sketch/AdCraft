@@ -4,7 +4,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { audit } from '../lib/audit'
 import { checkAndResetUsage } from '../lib/apiUsage'
 import { checkFeatureAccess, checkApiQuota } from '../lib/permissions'
-import { validatePlanKey as validatePlanKeyLib, checkRegistrationAllowed, planKeyErrorMessage } from '../lib/planKey'
+import { validatePlanKey as validatePlanKeyLib, validatePlanKeyAuto, checkRegistrationAllowed, planKeyErrorMessage } from '../lib/planKey'
 import type { UserProfile, PlanFeatures, AuthContextValue } from '../types/auth'
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -249,8 +249,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     email: string,
     password: string,
     fullName?: string,
-    planKey?: string,
-    planName?: string
+    planKey?: string
   ): Promise<{ error: string | null }> => {
     if (!isSupabaseConfigured) {
       setUser(DEV_USER)
@@ -289,8 +288,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await audit.accountCreated(data.user.id, email)
 
         // If plan key provided, validate it to assign the plan
-        if (planKey && planName) {
-          const pkResult = await validatePlanKeyLib(planName, planKey)
+        if (planKey) {
+          const pkResult = await validatePlanKeyAuto(planKey)
           if (!pkResult.success) {
             // User created but plan key failed — sign out and return error
             await supabase.auth.signOut()

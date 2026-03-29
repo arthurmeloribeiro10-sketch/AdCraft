@@ -5,6 +5,8 @@ import { generateCopy } from '../lib/ai'
 import type { CopyResult } from '../lib/ai'
 import { useStore } from '../store/useStore'
 import { generateId } from '../lib/utils'
+import { consumeTokens, tokenLimitMessage } from '../lib/tokens'
+import { useAuth } from '../context/AuthContext'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import Input from '../components/ui/Input'
@@ -42,6 +44,7 @@ function SkeletonBlock() {
 
 export default function CopyGenerator() {
   const { addCopy } = useStore()
+  const { profile } = useAuth()
   const [product, setProduct] = useState('')
   const [audience, setAudience] = useState('')
   const [problem, setProblem] = useState('')
@@ -56,6 +59,11 @@ export default function CopyGenerator() {
     setResult(null)
     setError(null)
     try {
+      const tokenResult = await consumeTokens('copyGenerator')
+      if (!tokenResult.success) {
+        setError(tokenLimitMessage(tokenResult, profile?.plan?.display_name))
+        return
+      }
       const res = await generateCopy({ product, audience, problem })
       setResult(res)
       addCopy({

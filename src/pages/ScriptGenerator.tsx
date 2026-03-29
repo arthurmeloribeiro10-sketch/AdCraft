@@ -5,6 +5,8 @@ import { generateScript } from '../lib/ai'
 import type { ScriptResult } from '../lib/ai'
 import { useStore } from '../store/useStore'
 import { generateId } from '../lib/utils'
+import { consumeTokens, tokenLimitMessage } from '../lib/tokens'
+import { useAuth } from '../context/AuthContext'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import Input from '../components/ui/Input'
@@ -60,6 +62,7 @@ function CopyButton({ text }: { text: string }) {
 
 export default function ScriptGenerator() {
   const { addScript } = useStore()
+  const { profile } = useAuth()
   const [product, setProduct] = useState('')
   const [audience, setAudience] = useState('')
   const [platform, setPlatform] = useState('TikTok')
@@ -74,6 +77,11 @@ export default function ScriptGenerator() {
     setResult(null)
     setError(null)
     try {
+      const tokenResult = await consumeTokens('scriptGenerator')
+      if (!tokenResult.success) {
+        setError(tokenLimitMessage(tokenResult, profile?.plan?.display_name))
+        return
+      }
       const res = await generateScript({ product, audience, platform, template })
       setResult(res)
       addScript({

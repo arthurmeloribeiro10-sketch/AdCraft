@@ -139,7 +139,7 @@ export interface SystemSetting {
 
 export interface AuthContextValue extends AuthState {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
-  signUp: (email: string, password: string, fullName?: string, planKey?: string, planName?: string) => Promise<{ error: string | null }>
+  signUp: (email: string, password: string, fullName?: string, planKey?: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
   validatePlanKey: (planName: string, planKey: string) => Promise<{ success: boolean; error?: string }>

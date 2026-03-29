@@ -20,8 +20,8 @@ export const PLAN_CONFIG: Record<PlanName, PlanConfig> = {
     color: '#9ca3af',
     bgColor: 'rgba(156,163,175,0.1)',
     borderColor: 'rgba(156,163,175,0.2)',
-    api_limit_daily: 10,
-    api_limit_monthly: 100,
+    api_limit_daily: 50,
+    api_limit_monthly: 50,
     features: {
       scriptGenerator: true,
       copyGenerator: true,
@@ -43,8 +43,8 @@ export const PLAN_CONFIG: Record<PlanName, PlanConfig> = {
     color: '#6366f1',
     bgColor: 'rgba(99,102,241,0.1)',
     borderColor: 'rgba(99,102,241,0.25)',
-    api_limit_daily: 50,
-    api_limit_monthly: 500,
+    api_limit_daily: 200,
+    api_limit_monthly: 200,
     features: {
       scriptGenerator: true,
       copyGenerator: true,
@@ -66,8 +66,8 @@ export const PLAN_CONFIG: Record<PlanName, PlanConfig> = {
     color: '#aa3bff',
     bgColor: 'rgba(170,59,255,0.1)',
     borderColor: 'rgba(170,59,255,0.3)',
-    api_limit_daily: 200,
-    api_limit_monthly: 2000,
+    api_limit_daily: -1,
+    api_limit_monthly: -1,
     features: {
       scriptGenerator: true,
       copyGenerator: true,

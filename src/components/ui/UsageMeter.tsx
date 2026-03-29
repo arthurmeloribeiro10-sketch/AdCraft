@@ -1,120 +1,70 @@
-import { cn } from '../../lib/utils'
-import { usePermissions } from '../../hooks/usePermissions'
+import { useAuth } from '../../context/AuthContext'
 
 interface UsageMeterProps {
   compact?: boolean
-  className?: string
 }
 
-function getColor(percent: number): string {
-  if (percent >= 90) return '#ef4444'
-  if (percent >= 70) return '#f59e0b'
-  return '#22c55e'
-}
+export default function UsageMeter({ compact = false }: UsageMeterProps) {
+  const { profile } = useAuth()
 
-interface MeterBarProps {
-  label: string
-  value: number
-  limit: number
-  percent: number
-  compact?: boolean
-}
+  if (!profile?.plan) return null
 
-function MeterBar({ label, value, limit, percent, compact }: MeterBarProps) {
-  const color = getColor(percent)
+  const limit   = profile.plan.api_limit_monthly
+  const used    = profile.api_calls_month ?? 0
+  const unlimited = limit === -1
+  const remaining = unlimited ? Infinity : Math.max(limit - used, 0)
+  const pct = unlimited ? 0 : Math.min((used / limit) * 100, 100)
+
+  const barColor =
+    unlimited ? '#aa3bff' :
+    pct >= 90  ? '#ef4444' :
+    pct >= 70  ? '#f59e0b' :
+    '#aa3bff'
 
   if (compact) {
     return (
-      <div className="flex flex-col gap-0.5">
-        <div className="flex items-center justify-between">
-          <span className="text-[9px] text-[#6b6b8a]">{label}</span>
-          <span className="text-[9px] font-medium" style={{ color }}>
-            {value}/{limit}
+      <div className="space-y-1.5 px-3 py-2 rounded-xl" style={{ background: '#08080f' }}>
+        <div className="flex justify-between items-center">
+          <span className="text-xs font-medium" style={{ color: '#6b6b8a' }}>Tokens</span>
+          <span className="text-xs font-semibold" style={{ color: unlimited ? '#aa3bff' : '#c4c4d4' }}>
+            {unlimited ? '∞ ilimitados' : `${remaining} restantes`}
           </span>
         </div>
-        <div className="h-1 rounded-full bg-[rgba(255,255,255,0.06)] overflow-hidden">
-          <div
-            className="h-full rounded-full transition-all duration-500"
-            style={{ width: `${percent}%`, backgroundColor: color }}
-          />
-        </div>
+        {!unlimited && (
+          <div className="h-1.5 rounded-full overflow-hidden" style={{ background: '#1a1a2e' }}>
+            <div className="h-full rounded-full transition-all duration-500"
+              style={{ width: `${pct}%`, background: barColor }} />
+          </div>
+        )}
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-[#6b6b8a]">{label}</span>
-        <span className="text-xs font-semibold" style={{ color }}>
-          {value}/{limit}
+    <div className="rounded-xl border p-4 space-y-3" style={{ background: '#0f0f1a', borderColor: '#1a1a2e' }}>
+      <div className="flex justify-between items-center">
+        <span className="text-sm font-medium" style={{ color: '#c4c4d4' }}>Tokens mensais</span>
+        <span className="text-sm font-bold" style={{ color: barColor }}>
+          {unlimited ? '∞' : `${used} / ${limit}`}
         </span>
       </div>
-      <div className="h-2 rounded-full bg-[rgba(255,255,255,0.06)] overflow-hidden">
-        <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${percent}%`, backgroundColor: color }}
-        />
-      </div>
-      {percent >= 90 && (
-        <p className="text-[10px] text-red-400">
-          {percent >= 100 ? 'Limite atingido!' : 'Quase no limite!'}
-        </p>
+
+      {!unlimited && (
+        <>
+          <div className="h-2 rounded-full overflow-hidden" style={{ background: '#1a1a2e' }}>
+            <div className="h-full rounded-full transition-all duration-500"
+              style={{ width: `${pct}%`, background: barColor }} />
+          </div>
+          <div className="flex justify-between text-xs" style={{ color: '#6b6b8a' }}>
+            <span>{remaining} tokens restantes</span>
+            <span>{Math.round(pct)}% usado</span>
+          </div>
+        </>
       )}
-    </div>
-  )
-}
 
-export default function UsageMeter({ compact = false, className }: UsageMeterProps) {
-  const {
-    apiCallsToday,
-    apiCallsMonth,
-    dailyLimit,
-    monthlyLimit,
-    usagePercentToday,
-    usagePercentMonth,
-  } = usePermissions()
-
-  if (compact) {
-    return (
-      <div className={cn('flex flex-col gap-1.5 px-2 py-2', className)}>
-        <MeterBar
-          label="Hoje"
-          value={apiCallsToday}
-          limit={dailyLimit}
-          percent={usagePercentToday}
-          compact
-        />
-        <MeterBar
-          label="Mês"
-          value={apiCallsMonth}
-          limit={monthlyLimit}
-          percent={usagePercentMonth}
-          compact
-        />
-      </div>
-    )
-  }
-
-  return (
-    <div className={cn('flex flex-col gap-4', className)}>
-      <div>
-        <h4 className="text-xs font-semibold text-[#c4c4d4] mb-3">Uso de API</h4>
-        <div className="flex flex-col gap-3">
-          <MeterBar
-            label="Chamadas hoje"
-            value={apiCallsToday}
-            limit={dailyLimit}
-            percent={usagePercentToday}
-          />
-          <MeterBar
-            label="Chamadas este mês"
-            value={apiCallsMonth}
-            limit={monthlyLimit}
-            percent={usagePercentMonth}
-          />
-        </div>
-      </div>
+      {unlimited && (
+        <p className="text-xs" style={{ color: '#6b6b8a' }}>Plano Elite — uso ilimitado</p>
+      )}
     </div>
   )
 }

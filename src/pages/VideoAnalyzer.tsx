@@ -5,6 +5,8 @@ import { analyzeVideo } from '../lib/ai'
 import type { VideoAnalysisResult } from '../lib/ai'
 import { useStore } from '../store/useStore'
 import { generateId } from '../lib/utils'
+import { consumeTokens, tokenLimitMessage } from '../lib/tokens'
+import { useAuth } from '../context/AuthContext'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import Badge from '../components/ui/Badge'
@@ -54,6 +56,7 @@ function SkeletonAnalysis() {
 
 export default function VideoAnalyzer() {
   const { addAnalysis } = useStore()
+  const { profile } = useAuth()
   const [url, setUrl] = useState('')
   const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
@@ -68,6 +71,11 @@ export default function VideoAnalyzer() {
     setResult(null)
     setError(null)
     try {
+      const tokenResult = await consumeTokens('videoAnalyzer')
+      if (!tokenResult.success) {
+        setError(tokenLimitMessage(tokenResult, profile?.plan?.display_name))
+        return
+      }
       const res = await analyzeVideo({ url: url || undefined, description: description || url })
       setResult(res)
       addAnalysis({

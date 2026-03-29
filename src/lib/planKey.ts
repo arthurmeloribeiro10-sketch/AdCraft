@@ -8,7 +8,7 @@ export type PlanKeyError =
   | 'invalid_key'
 
 export type ValidatePlanKeyResult =
-  | { success: true; planName: string }
+  | { success: true; planName: string; planDisplay?: string }
   | { success: false; error: PlanKeyError }
 
 export type RegistrationAllowedResult =
@@ -126,6 +126,24 @@ export async function adminUnblockEmail(email: string): Promise<boolean> {
   })
   if (error) return false
   return (data as { success: boolean })?.success ?? false
+}
+
+/** Auto-detects which plan the key belongs to and assigns it to the current user. */
+export async function validatePlanKeyAuto(
+  planKey: string
+): Promise<ValidatePlanKeyResult & { planDisplay?: string }> {
+  const { data, error } = await supabase.rpc('validate_plan_key_auto', {
+    p_key: planKey,
+  })
+  if (error) {
+    console.error('validatePlanKeyAuto error:', error)
+    return { success: false, error: 'invalid_key' }
+  }
+  const result = data as { success: boolean; plan_name?: string; plan_display?: string; error?: PlanKeyError }
+  if (result.success) {
+    return { success: true, planName: result.plan_name!, planDisplay: result.plan_display }
+  }
+  return { success: false, error: result.error ?? 'invalid_key' }
 }
 
 export function planKeyErrorMessage(error: PlanKeyError): string {

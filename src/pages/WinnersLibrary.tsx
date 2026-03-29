@@ -1,9 +1,11 @@
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { motion } from 'framer-motion'
 import { BookOpen, Filter, ChevronDown } from 'lucide-react'
 import Card from '../components/ui/Card'
 import Badge from '../components/ui/Badge'
 import type { WinnerAd } from '../types'
+import { consumeTokens, tokenLimitMessage } from '../lib/tokens'
+import { useAuth } from '../context/AuthContext'
 
 const MOCK_WINNERS: WinnerAd[] = [
   {
@@ -101,9 +103,22 @@ const ALL_FORMATS = ['Todos', ...Array.from(new Set(MOCK_WINNERS.map((w) => w.fo
 const ALL_PLATFORMS = ['Todos', ...Array.from(new Set(MOCK_WINNERS.map((w) => w.platform)))]
 
 export default function WinnersLibrary() {
+  const { profile } = useAuth()
   const [nicheFilter, setNicheFilter] = useState('Todos')
   const [formatFilter, setFormatFilter] = useState('Todos')
   const [platformFilter, setPlatformFilter] = useState('Todos')
+  const [tokenError, setTokenError] = useState<string | null>(null)
+  const tokenConsumedRef = useRef(false)
+
+  useEffect(() => {
+    if (tokenConsumedRef.current) return
+    tokenConsumedRef.current = true
+    consumeTokens('winnersLibrary').then(result => {
+      if (!result.success) {
+        setTokenError(tokenLimitMessage(result, profile?.plan?.display_name))
+      }
+    })
+  }, [profile?.plan?.display_name])
 
   const filtered = MOCK_WINNERS.filter((w) => {
     if (nicheFilter !== 'Todos' && w.niche !== nicheFilter) return false
@@ -127,6 +142,12 @@ export default function WinnersLibrary() {
           Estude as estruturas e estratégias dos criativos que mais convertem
         </p>
       </motion.div>
+
+      {tokenError && (
+        <div className="mb-4 rounded-xl px-4 py-3 border text-sm" style={{ background: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.3)', color: '#f87171' }}>
+          {tokenError}
+        </div>
+      )}
 
       {/* Filter bar */}
       <motion.div

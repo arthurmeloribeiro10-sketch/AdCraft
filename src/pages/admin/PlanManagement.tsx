@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Key, RefreshCw, Shield, AlertTriangle, CheckCircle, Clock, Eye, EyeOff, Calendar, Save, ChevronDown, ChevronUp } from 'lucide-react'
+import { Key, RefreshCw, Shield, AlertTriangle, CheckCircle, Clock, Eye, EyeOff, Calendar, Save, ChevronDown, ChevronUp, Coins } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { adminGetPlanKeyStatus, adminSetPlanKey } from '../../lib/planKey'
 import type { PlanKeyStatus } from '../../lib/planKey'
 import type { Plan } from '../../types/auth'
+import { adminGetFeatureCosts, adminUpdateFeatureCosts, FEATURE_NAMES, FEATURE_TOKEN_COSTS, type FeatureKey } from '../../lib/tokens'
 
 const PLAN_COLORS: Record<string, string> = {
   starter: '#6b6b8a',
@@ -31,15 +32,21 @@ export default function PlanManagement() {
   const [editedPlans, setEditedPlans] = useState<Record<string, Partial<Plan>>>({})
   const [expandedPlan, setExpandedPlan] = useState<string | null>(null)
 
+  // Token costs state
+  const [featureCosts, setFeatureCosts] = useState<Record<string, number>>(FEATURE_TOKEN_COSTS)
+  const [savingCosts, setSavingCosts] = useState(false)
+
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const [{ data: plansData }, keysData] = await Promise.all([
+      const [{ data: plansData }, keysData, costs] = await Promise.all([
         supabase.from('plans').select('*').order('sort_order'),
         adminGetPlanKeyStatus(),
+        adminGetFeatureCosts(),
       ])
       setPlans(plansData || [])
       setPlanKeys(keysData)
+      setFeatureCosts(costs)
     } catch (err) {
       console.error('PlanManagement loadData:', err)
     } finally {
@@ -198,6 +205,51 @@ export default function PlanManagement() {
               </div>
             )
           })}
+        </div>
+      </div>
+
+      {/* ── TOKEN COSTS SECTION ── */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <Coins className="w-5 h-5" style={{ color: '#22d3ee' }} />
+          <h2 className="text-lg font-semibold text-white">Custo de Tokens por Funcionalidade</h2>
+        </div>
+        <p className="mb-4 text-sm" style={{ color: '#6b6b8a' }}>
+          Define quantos tokens cada funcionalidade consome ao gerar conteúdo.
+        </p>
+        <div className="rounded-xl border p-5" style={{ background: '#0f0f1a', borderColor: '#1a1a2e' }}>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-5">
+            {Object.entries(FEATURE_NAMES).map(([key, label]) => (
+              <div key={key}>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: '#6b6b8a' }}>{label}</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number" min="0" max="999"
+                    value={featureCosts[key] ?? 1}
+                    onChange={e => setFeatureCosts(prev => ({ ...prev, [key]: +e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg border text-sm outline-none text-center"
+                    style={{ background: '#08080f', borderColor: '#1a1a2e', color: '#c4c4d4' }}
+                  />
+                  <span className="text-xs whitespace-nowrap" style={{ color: '#6b6b8a' }}>tokens</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={async () => {
+              setSavingCosts(true)
+              try {
+                const ok = await adminUpdateFeatureCosts(featureCosts as Record<FeatureKey, number>)
+                if (ok) { setSuccess('Custos de tokens atualizados!'); setTimeout(() => setSuccess(''), 3000) }
+              } finally { setSavingCosts(false) }
+            }}
+            disabled={savingCosts}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+            style={{ background: '#22d3ee22', color: '#22d3ee', border: '1px solid #22d3ee44' }}
+          >
+            <Save className="w-3.5 h-3.5" />
+            {savingCosts ? 'Salvando...' : 'Salvar custos'}
+          </button>
         </div>
       </div>
 
