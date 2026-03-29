@@ -295,6 +295,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             await supabase.auth.signOut()
             return { error: `Conta criada mas chave do plano inválida: ${planKeyErrorMessage(pkResult.error)}. Faça login e tente novamente.` }
           }
+          // Refresh profile so the correct plan is reflected in state
+          // (trigger assigns starter first; key validation upgrades it)
+          await refreshProfile()
         }
       }
 
