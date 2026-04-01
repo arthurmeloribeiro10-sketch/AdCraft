@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { supabase, isSupabaseConfigured } from './supabase'
 
 // Feature keys — must match system_settings feature_token_costs keys
 export type FeatureKey =
@@ -49,6 +49,10 @@ export interface ConsumeResult {
 
 /** Deduct tokens for a feature. Must be called before AI generation. */
 export async function consumeTokens(feature: FeatureKey): Promise<ConsumeResult> {
+  // Dev mode: skip token check when Supabase is not configured
+  if (!isSupabaseConfigured) {
+    return { success: true, unlimited: true, cost: FEATURE_TOKEN_COSTS[feature] }
+  }
   const { data, error } = await supabase.rpc('consume_tokens', { p_feature: feature })
   if (error) {
     console.error('consumeTokens error:', error)
