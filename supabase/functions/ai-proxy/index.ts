@@ -6,35 +6,33 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-// ─── OpenAI helper ───────────────────────────────────────────────────────────
+// ─── Gemini helper ───────────────────────────────────────────────────────────
 
 async function callOpenAI(prompt: string, systemPrompt?: string): Promise<string> {
-  const apiKey = Deno.env.get('OPENAI_API_KEY')
-  if (!apiKey) throw new Error('OPENAI_API_KEY não configurada nos secrets do Supabase.')
+  const apiKey = Deno.env.get('GEMINI_API_KEY')
+  if (!apiKey) throw new Error('GEMINI_API_KEY não configurada nos secrets do Supabase.')
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      temperature: 0.8,
-      messages: [
-        ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
-        { role: 'user', content: prompt },
-      ],
-    }),
-  })
+  const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: fullPrompt }] }],
+        generationConfig: { temperature: 0.8 },
+      }),
+    }
+  )
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}))
-    throw new Error(err?.error?.message || `Erro OpenAI: ${response.status}`)
+    throw new Error(err?.error?.message || `Erro Gemini: ${response.status}`)
   }
 
   const data = await response.json()
-  return data.choices?.[0]?.message?.content ?? ''
+  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
 }
 
 function parseJSON<T>(text: string): T {
