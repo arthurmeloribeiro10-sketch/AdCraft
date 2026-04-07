@@ -14,6 +14,35 @@ import Button from '../components/ui/Button'
 // ─── Local persistence ────────────────────────────────────────────────────────
 
 const SAVES_KEY = 'adcraft_trend_saves'
+const TRENDS_CACHE_KEY = 'adcraft_trends_cache'
+
+interface TrendsCache {
+  trends: Trend[]
+  date: string // YYYY-MM-DD
+}
+
+function loadTrendsCache(): TrendsCache | null {
+  try {
+    const raw = localStorage.getItem(TRENDS_CACHE_KEY)
+    if (!raw) return null
+    return JSON.parse(raw) as TrendsCache
+  } catch {
+    return null
+  }
+}
+
+function saveTrendsCache(trends: Trend[]) {
+  try {
+    const today = new Date().toISOString().slice(0, 10)
+    const cache: TrendsCache = { trends, date: today }
+    localStorage.setItem(TRENDS_CACHE_KEY, JSON.stringify(cache))
+  } catch {}
+}
+
+function isCacheFresh(cache: TrendsCache): boolean {
+  const today = new Date().toISOString().slice(0, 10)
+  return cache.date === today
+}
 
 function loadAllSaves(): Record<string, { roteiro?: string; copy?: string; savedAt?: string }> {
   try {
@@ -569,14 +598,26 @@ export default function TrendsRadar() {
   const [trends, setTrends] = useState<Trend[]>([])
   const [loading, setLoading] = useState(false)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
+  const [fromCache, setFromCache] = useState(false)
   const [plataforma, setPlataforma] = useState<Plataforma>('Todos')
 
-  useEffect(() => { loadTrends() }, [])
+  useEffect(() => {
+    const cache = loadTrendsCache()
+    if (cache && isCacheFresh(cache)) {
+      setTrends(cache.trends)
+      setLastUpdate(new Date(`${cache.date}T00:00:00`))
+      setFromCache(true)
+    } else {
+      loadTrends()
+    }
+  }, [])
 
   async function loadTrends() {
     setLoading(true)
+    setFromCache(false)
     const data = await generateTrends()
     setTrends(data)
+    saveTrendsCache(data)
     setLastUpdate(new Date())
     setLoading(false)
   }
@@ -616,7 +657,9 @@ export default function TrendsRadar() {
         </div>
         {lastUpdate && (
           <p className="text-[10px] text-[#6b6b8a] mt-2">
-            Última atualização: {lastUpdate.toLocaleTimeString('pt-BR')}
+            {fromCache
+              ? `Tendências de hoje · próxima atualização amanhã`
+              : `Última atualização: ${lastUpdate.toLocaleString('pt-BR')}`}
           </p>
         )}
       </div>
