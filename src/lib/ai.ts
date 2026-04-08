@@ -461,14 +461,154 @@ const MOCK_TRENDS: Omit<Trend, 'id' | 'created_at'>[] = [
       promessa: 'Experiência de compra superior com resultado garantido e suporte real',
     },
   },
+  // ── Pool B — rotação diária ──────────────────────────────────────────────────
+  {
+    nome: 'Countdown da Urgência Real',
+    plataforma: 'Instagram',
+    tipo: 'copy',
+    descricao: 'Copy baseada em escassez genuína: vagas limitadas, lote esgotando ou prazo real. O countdown no criativo cria pressão psicológica que acelera a decisão de compra.',
+    por_que_viraliza: 'FOMO (Fear of Missing Out) é o gatilho de conversão mais poderoso. Quando a escassez é real e verificável, a credibilidade do anúncio aumenta e as objeções caem.',
+    como_usar: 'Mostrar contador regressivo real integrado ao criativo. Headline: "Restam apenas X vagas". Reforçar com prova de que lotes anteriores esgotaram. CTA com fricção mínima.',
+    copy_exemplo: '"⏰ Última chamada: só restam 12 vagas para a turma que começa segunda. As 3 últimas turmas esgotaram antes do prazo. Se você está lendo isso, ainda dá tempo."',
+    ideia_criativo: 'Timer grande e animado em destaque. Barra de progresso mostrando vagas preenchidas. Depoimentos rápidos de quem entrou no lote anterior. Cores quentes que transmitem urgência.',
+    nivel_viralidade: 7,
+    potencial_conversao: 10,
+    inputs_adcraft: {
+      produto: 'Cursos com turmas, eventos, edições limitadas, assinaturas com desconto',
+      publico: 'Pessoas interessadas que estão na fase de decisão, indecisos clássicos',
+      dor: 'Procrastinação e medo de tomar decisão errada',
+      promessa: 'Garantia de vagas e resultado para quem entrar nesta turma específica',
+    },
+  },
+  {
+    nome: 'Desafio dos 7 Dias',
+    plataforma: 'TikTok',
+    tipo: 'formato',
+    descricao: 'Série de conteúdo documentando uma transformação em 7 dias com o produto. Cada vídeo mostra evolução real, criando narrativa serializada que prende e converte.',
+    por_que_viraliza: 'O formato série força o algoritmo a recomendar o próximo episódio. Audiência acompanha o progresso como uma novela — alto rewatch rate e alto engajamento nos comentários.',
+    como_usar: 'Dia 1: apresentar a situação atual com honestidade. Dias 2-6: atualizar com resultados incrementais. Dia 7: revelação do resultado final + CTA de compra. Usar mesma hashtag em todos.',
+    copy_exemplo: '"Dia 1 do desafio: comecei hoje. Estou cético, mas vou documentar tudo aqui. Segue pra ver o resultado. #Desafio7Dias #[produto]"',
+    ideia_criativo: 'Mesmo local, mesma roupa no dia 1 e 7 para comparação visual. Narração em voz over honesta sobre cada fase. Texto na tela marcando o dia. Final com before/after lado a lado.',
+    nivel_viralidade: 9,
+    potencial_conversao: 7,
+    inputs_adcraft: {
+      produto: 'Produtos com resultado rápido e visível: emagrecimento, skincare, finanças, produtividade',
+      publico: 'Céticos que precisam ver prova antes de comprar, jovens 18-34',
+      dor: 'Desconfiança em promessas de resultado e medo de desperdiçar dinheiro',
+      promessa: 'Transformação real documentada dia a dia, sem edição nem exagero',
+    },
+  },
+  {
+    nome: 'Expert em 60 Segundos',
+    plataforma: 'YouTube',
+    tipo: 'formato',
+    descricao: 'Criador posicionado como autoridade responde uma pergunta frequente da audiência em exatamente 60 segundos, com informação densa e acionável que ninguém mais entrega de graça.',
+    por_que_viraliza: 'YouTube Shorts prioriza retenção completa. Conteúdo de valor gerado por autoridade gera salvamentos e compartilhamentos. Audiência retorna para mais — criando ciclo de reconhecimento.',
+    como_usar: 'Escolher pergunta frequente nos comentários ou pesquisa. Responder com precisão, sem rodeios. Mostrar credenciais brevemente no início. Finalizar com "agora que você sabe isso, faça [próximo passo]".',
+    copy_exemplo: '"A pergunta mais recorrente que me fazem: como dobrar minha taxa de conversão sem gastar mais? Em 60 segundos: [resposta direta]. Quer o método completo? Link na descrição."',
+    ideia_criativo: 'Fundo clean e profissional. Expert em quadro direto. Gráficos e dados aparecem ao lado para ilustrar pontos. Timer no canto. Call-to-action final com tela estática e link visível.',
+    nivel_viralidade: 7,
+    potencial_conversao: 9,
+    inputs_adcraft: {
+      produto: 'Serviços de consultoria, mentorias, SaaS, cursos de nicho especializado',
+      publico: 'Profissionais e empreendedores em busca de resultados acima da média',
+      dor: 'Falta de direcionamento especializado e acesso a conhecimento de alto nível',
+      promessa: 'Acesso direto ao conhecimento de um expert com histórico comprovado',
+    },
+  },
+  {
+    nome: 'Números que Chocam',
+    plataforma: 'Facebook',
+    tipo: 'copy',
+    descricao: 'Copy abre com dado numérico surpreendente que contradiz a crença comum do público-alvo, criando dissonância cognitiva que força o processamento e o clique.',
+    por_que_viraliza: 'Cérebros são calibrados para processar números como fatos. Uma estatística inesperada quebra o piloto automático do scroll. Facebook Ads com dados têm CTR 40% maior que promessas genéricas.',
+    como_usar: 'Primeiro elemento do criativo deve ser o número em tamanho grande. Headline questiona a crença popular. Corpo explica o dado. CTA conecta ao produto como solução lógica do dado revelado.',
+    copy_exemplo: '"R$ 3.200 — é quanto a pessoa média perde por ano em [problema comum] sem perceber. Você provavelmente está no mesmo barco. Veja como parar de sangrar dinheiro agora."',
+    ideia_criativo: 'Número grande e impactante centralizando a tela em contraste forte. Animação de contador chegando ao valor chocante. Expressão de surprise/choque de ator. Texto explicativo aparece abaixo.',
+    nivel_viralidade: 8,
+    potencial_conversao: 8,
+    inputs_adcraft: {
+      produto: 'Produtos financeiros, seguros, cursos de economia, ferramentas de produtividade',
+      publico: 'Adultos 28-50 preocupados com finanças pessoais e aproveitamento do tempo',
+      dor: 'Perda financeira invisível ou ineficiência que se acumula sem perceber',
+      promessa: 'Recuperar ou economizar um valor concreto mensurável em prazo definido',
+    },
+  },
+  {
+    nome: 'Stitch Resposta Viral',
+    plataforma: 'TikTok',
+    tipo: 'formato',
+    descricao: 'Usar o formato Stitch para responder/reagir a vídeo viral do nicho, adicionando perspectiva de especialista ou revelando o que falta na informação original.',
+    por_que_viraliza: 'Stitch herda tráfego do vídeo original. Quem assistiu o primeiro é o público mais qualificado para ver a resposta. O algoritmo promove conteúdo que cria diálogo e gera debate.',
+    como_usar: 'Identificar vídeo viral do nicho com conselho incompleto ou incorreto. Stitch mostrando os 5 primeiros segundos. Completar com perspectiva mais avançada ou corrigir com dados. CTA natural ao final.',
+    copy_exemplo: '"Esse vídeo tem 2 milhões de views e está ensinando ERRADO. O que ele não te falou é que [insight diferenciado]. Aqui está o que realmente funciona:"',
+    ideia_criativo: 'Quadro dividido: vídeo original no topo (pequeno), criador reagindo embaixo. Expressão de surpresa ou discordância respeitosa. Texto na tela destacando o que está faltando no original.',
+    nivel_viralidade: 9,
+    potencial_conversao: 6,
+    inputs_adcraft: {
+      produto: 'Infoprodutos, cursos, consultorias onde a diferenciação de método é o diferencial',
+      publico: 'Pessoas já consumindo conteúdo do nicho, em estágio de consideração avançada',
+      dor: 'Informação conflitante e dificuldade de saber em quem confiar',
+      promessa: 'Método validado e completo, sem os erros que os outros ensinam',
+    },
+  },
+  {
+    nome: 'Depoimento em Tempo Real',
+    plataforma: 'Multi-plataforma',
+    tipo: 'visual',
+    descricao: 'Cliente grava reação espontânea no exato momento em que experimenta o produto ou vê o resultado, capturando emoção bruta não editada que gera identificação imediata.',
+    por_que_viraliza: 'Emoção não editada é o conteúdo mais compartilhável da internet. O algoritmo de todas as plataformas prioriza conteúdo que gera reação emocional, e lágrimas ou euforia genuína são maximizados.',
+    como_usar: 'Pedir ao cliente para gravar no celular assim que receber o produto ou ver o resultado. Instruir: "pode ser uma bagunça, não edite". Usar exatamente como chegou, com no máximo corte inicial e legenda.',
+    copy_exemplo: '"Não consegue falar direito de emoção 😭 — esse foi o momento que [cliente] viu o resultado pela primeira vez. Sem edição, sem roteiro. Real assim."',
+    ideia_criativo: 'Vídeo vertical bruto do celular do cliente. Sem edição pesada — só legenda e logo discreto. Reação real: choro, riso, grito de euforia. Mostrar o resultado causando a reação em quadro.',
+    nivel_viralidade: 9,
+    potencial_conversao: 8,
+    inputs_adcraft: {
+      produto: 'Qualquer produto com resultado emocional: emagrecimento, renda extra, cura de problema crônico',
+      publico: 'Pessoas que identificam o problema e precisam de prova emocional para agir',
+      dor: 'Ceticismo e "será que funciona pra mim" que bloqueia a compra',
+      promessa: 'Resultado real comprovado por pessoa com o mesmo perfil que o prospect',
+    },
+  },
+  {
+    nome: 'Comparativo Honesto',
+    plataforma: 'YouTube',
+    tipo: 'copy',
+    descricao: 'Vídeo que compara o produto com alternativas do mercado de forma transparente — incluindo desvantagens reais — construindo confiança tão alta que o prospect compra mesmo sabendo das limitações.',
+    por_que_viraliza: 'Honestidade radical é disruptiva no universo de marketing. Conteúdo que admite fraquezas vira referência — é salvo, compartilhado e linkado como "o único review honesto que encontrei".',
+    como_usar: 'Listar 3-4 alternativas reais. Criar tabela de comparação incluindo preço, resultado e limitações honestas. Posicionar o produto como melhor para um perfil específico, não para todos.',
+    copy_exemplo: '"Vou te dizer quando NÃO comprar [produto]: se você [situação X], vai ser desperdício. Mas se você é [perfil ideal], isso aqui vai mudar tudo. Veja a comparação completa:"',
+    ideia_criativo: 'Tabela animada comparando os produtos. Checkmarks verdes e X vermelhos honestos. Criador gesticula explicando cada ponto. Seção final com "para quem é ideal" em destaque.',
+    nivel_viralidade: 7,
+    potencial_conversao: 9,
+    inputs_adcraft: {
+      produto: 'Produtos em mercado competitivo onde o prospect pesquisa antes de comprar',
+      publico: 'Pesquisadores ativos, decisores racionais, perfil analítico 30-55 anos',
+      dor: 'Paralisia por análise e dificuldade de escolher entre opções similares',
+      promessa: 'A escolha certa para o seu perfil específico, com transparência total',
+    },
+  },
 ]
+
+// Seleciona 8 tendências diferentes por dia com base na data atual
+function getDailyMockTrends(): Omit<Trend, 'id' | 'created_at'>[] {
+  const today = new Date().toISOString().slice(0, 10)
+  const seed = today.split('-').reduce((acc, part) => acc + parseInt(part, 10), 0)
+  const shuffled = [...MOCK_TRENDS]
+  // Fisher-Yates com seed determinístico
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = (seed * (i + 7) * 2654435761) % (i + 1)
+    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+  return shuffled.slice(0, 8)
+}
 
 // ─── Trends — geração por IA com fallback para dados curados ─────────────────
 
 export async function generateTrends(): Promise<Trend[]> {
   const apiKey = getActiveApiKey()
   const created_at = new Date().toISOString()
-  const fallback = () => MOCK_TRENDS.map((t) => ({ ...t, id: generateId(), created_at }))
+  const fallback = () => getDailyMockTrends().map((t) => ({ ...t, id: generateId(), created_at }))
 
   if (!apiKey && !isSupabaseConfigured) return fallback()
 
