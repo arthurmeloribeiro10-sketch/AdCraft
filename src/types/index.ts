@@ -106,6 +106,24 @@ export interface WinnerAd {
   created_at: string
 }
 
+export interface LibraryAd {
+  id: string
+  creative_type: string
+  niche: string
+  format: string
+  platform: string
+  structure: string
+  strategy: string
+  why_works: string
+  hook_example: string
+  copy_example: string
+  target_audience: string
+  difficulty: 'Fácil' | 'Médio' | 'Avançado'
+  estimated_ctr: string
+  budget_range: string
+  created_at: string
+}
+
 export interface TrendInputsAdcraft {
   produto: string
   publico: string

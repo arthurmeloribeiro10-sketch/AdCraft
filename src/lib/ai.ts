@@ -1,7 +1,7 @@
 import { supabase, isSupabaseConfigured } from './supabase'
 import { generateId } from './utils'
 import { getActiveApiKey } from './apiKey'
-import type { Script, Copy, VideoAnalysis, CreativeIdea, Trend } from '../types'
+import type { Script, Copy, VideoAnalysis, CreativeIdea, Trend, LibraryAd } from '../types'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -297,6 +297,50 @@ Retorne APENAS um JSON válido com um array de 6 ideias:
     niche, product, audience,
     id: generateId(),
     user_id: '',
+    created_at: new Date().toISOString(),
+  }))
+}
+
+// ─── Ad Library Search ───────────────────────────────────────────────────────
+
+export async function searchAdLibrary(niche: string): Promise<LibraryAd[]> {
+  const ads = await callAI<{
+    creative_type: string; format: string; platform: string
+    structure: string; strategy: string; why_works: string
+    hook_example: string; copy_example: string; target_audience: string
+    difficulty: string; estimated_ctr: string; budget_range: string
+  }[]>('search-ad-library', { niche }, () => ({
+    prompt: `Você é um especialista em anúncios digitais para o mercado brasileiro. Gere 6 templates de anúncios vencedores para o nicho: "${niche}".
+
+Cada template deve ser 100% específico para esse nicho, com exemplos reais e acionáveis.
+
+Retorne APENAS um JSON válido com um array de 6 objetos:
+[
+  {
+    "creative_type": "nome do tipo criativo (ex: UGC Testemunho, Tutorial Rápido, POV Situacional)",
+    "format": "formato do vídeo (Vertical 9:16 | Quadrado 1:1 | Horizontal 16:9)",
+    "platform": "plataforma ideal (TikTok | Instagram | Facebook | YouTube)",
+    "structure": "estrutura com timestamps ex: Hook (0-3s) → Problema (3-8s) → Solução (8-20s) → CTA (20-30s)",
+    "strategy": "estratégia principal em até 4 palavras (ex: Prova Social + Urgência)",
+    "why_works": "explicação objetiva de 2-3 frases de por que esse formato converte nesse nicho",
+    "hook_example": "exemplo real de hook de abertura (1-2 frases impactantes específicas para o nicho)",
+    "copy_example": "exemplo de copy/legenda de 2-3 frases para usar como base, específico para o nicho",
+    "target_audience": "perfil detalhado do público ideal para esse criativo (idade, interesses, momento de compra)",
+    "difficulty": "Fácil ou Médio ou Avançado",
+    "estimated_ctr": "CTR estimado (ex: 2-4% | 3-6% | 1-3%)",
+    "budget_range": "faixa de investimento diário em reais (ex: R$30-80/dia | R$80-200/dia)"
+  }
+]`,
+    system: `Você é um estrategista de mídia paga especialista em anúncios de alta conversão para o mercado brasileiro.
+Conheça profundamente o nicho informado e gere templates ESPECÍFICOS — nunca genéricos.
+Use linguagem e exemplos do mercado brasileiro. Retorne apenas JSON válido.`,
+  }))
+
+  return ads.map((ad) => ({
+    ...ad,
+    difficulty: (ad.difficulty as LibraryAd['difficulty']) ?? 'Médio',
+    niche,
+    id: generateId(),
     created_at: new Date().toISOString(),
   }))
 }
