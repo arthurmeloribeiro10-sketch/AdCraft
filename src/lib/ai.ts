@@ -40,10 +40,59 @@ async function callOpenAI(prompt: string, systemPrompt?: string): Promise<string
   return data.choices?.[0]?.message?.content ?? ''
 }
 
+async function callOpenAIWithVision(
+  prompt: string,
+  systemPrompt: string,
+  frames: string[],
+): Promise<string> {
+  const apiKey = getActiveApiKey()
+  if (!apiKey) throw new Error('Configure sua chave da OpenAI nas configurações (ícone ⚙️ no topo).')
+
+  const imageContent = frames.map((b64) => ({
+    type: 'image_url' as const,
+    image_url: { url: `data:image/jpeg;base64,${b64}`, detail: 'low' as const },
+  }))
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      temperature: 0.7,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        {
+          role: 'user',
+          content: [
+            ...imageContent,
+            { type: 'text', text: prompt },
+          ],
+        },
+      ],
+    }),
+  })
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err?.error?.message || `Erro OpenAI: ${response.status}`)
+  }
+
+  const data = await response.json()
+  return data.choices?.[0]?.message?.content ?? ''
+}
+
 function parseJSON<T>(text: string): T {
   const match = text.match(/```json\s*([\s\S]*?)```/) || text.match(/\{[\s\S]*\}|\[[\s\S]*\]/)
   const raw = match ? (match[1] ?? match[0]) : text
   return JSON.parse(raw.trim())
+}
+
+function toScore(val: unknown): number {
+  const n = Number(val)
+  return isNaN(n) ? 50 : Math.max(0, Math.min(100, Math.floor(n)))
 }
 
 // ─── Edge Function (production) ───────────────────────────────────────────────
@@ -138,19 +187,16 @@ Retorne APENAS um JSON válido:
 export async function analyzeVideo(params: {
   url?: string
   description: string
+  frames?: string[]
 }): Promise<VideoAnalysisResult> {
-  const { description, url } = params
+  const { description, url, frames } = params
 
-  const result = await callAI<{
-    hookScore: number; retentionScore: number; clarityScore: number
-    storytellingScore: number; ctaScore: number; viralScore: number
-    strengths: string[]; weaknesses: string[]; suggestions: string[]
-  }>('analyze-video', params, () => ({
-    prompt: `Analise este anúncio em vídeo e dê uma avaliação detalhada:
+  const prompt = `Analise este anúncio em vídeo e dê uma avaliação detalhada:
 ${url ? `URL: ${url}` : ''}
-Descrição: ${description}
+${description ? `Descrição: ${description}` : ''}
+${frames?.length ? `\nAs imagens anexadas são frames extraídos do vídeo (início, meio e fim). Analise visualmente o conteúdo real do vídeo.` : ''}
 
-Retorne APENAS um JSON válido:
+Avalie criteriosamente cada dimensão e atribua notas REAIS baseadas no que foi analisado (não dê notas genéricas — seja preciso e justificado). Retorne APENAS um JSON válido:
 {
   "hookScore": <número 0-100>,
   "retentionScore": <número 0-100>,
@@ -158,30 +204,59 @@ Retorne APENAS um JSON válido:
   "storytellingScore": <número 0-100>,
   "ctaScore": <número 0-100>,
   "viralScore": <número 0-100>,
-  "strengths": ["ponto forte 1", "ponto forte 2", "ponto forte 3", "ponto forte 4"],
-  "weaknesses": ["ponto fraco 1", "ponto fraco 2", "ponto fraco 3"],
-  "suggestions": ["sugestão 1", "sugestão 2", "sugestão 3", "sugestão 4"]
-}`,
-    system: 'Você é um especialista em análise de anúncios de vídeo para redes sociais, com foco em métricas de performance, retenção e conversão. Seja específico e acionável nas sugestões. Retorne apenas JSON válido.',
-  }))
+  "strengths": ["ponto forte específico 1", "ponto forte específico 2", "ponto forte específico 3", "ponto forte específico 4"],
+  "weaknesses": ["ponto fraco específico 1", "ponto fraco específico 2", "ponto fraco específico 3"],
+  "suggestions": ["sugestão acionável 1", "sugestão acionável 2", "sugestão acionável 3", "sugestão acionável 4"]
+}`
 
-  const overallScore = Math.floor(
-    (result.hookScore + result.retentionScore + result.clarityScore +
-     result.storytellingScore + result.ctaScore + result.viralScore) / 6
-  )
+  const system = 'Você é um especialista em análise de anúncios de vídeo para redes sociais, com foco em métricas de performance, retenção e conversão. Seja específico, criterioso e acionável. NUNCA retorne NaN ou valores não-numéricos nos scores. Retorne apenas JSON válido.'
+
+  let raw: string
+  if (frames && frames.length > 0) {
+    // Use vision model when we have actual video frames
+    raw = await callOpenAIWithVision(prompt, system, frames)
+  } else {
+    raw = await callAI<string>('analyze-video', { url, description }, () => ({ prompt, system })) as unknown as string
+    if (typeof raw !== 'string') {
+      // callAI already parsed the JSON via edge function — raw is actually the result object
+      const r = raw as {
+        hookScore: unknown; retentionScore: unknown; clarityScore: unknown
+        storytellingScore: unknown; ctaScore: unknown; viralScore: unknown
+        strengths: string[]; weaknesses: string[]; suggestions: string[]
+      }
+      const hook = toScore(r.hookScore), retention = toScore(r.retentionScore)
+      const clarity = toScore(r.clarityScore), storytelling = toScore(r.storytellingScore)
+      const cta = toScore(r.ctaScore), viral = toScore(r.viralScore)
+      return {
+        video_url: url,
+        description,
+        overallScore: Math.floor((hook + retention + clarity + storytelling + cta + viral) / 6),
+        scoreBreakdown: { hook, retention, clarity, storytelling, cta, viral },
+        strengths: r.strengths,
+        weaknesses: r.weaknesses,
+        suggestions: r.suggestions,
+      }
+    }
+  }
+
+  const result = parseJSON<{
+    hookScore: unknown; retentionScore: unknown; clarityScore: unknown
+    storytellingScore: unknown; ctaScore: unknown; viralScore: unknown
+    strengths: string[]; weaknesses: string[]; suggestions: string[]
+  }>(raw)
+
+  const hook = toScore(result.hookScore)
+  const retention = toScore(result.retentionScore)
+  const clarity = toScore(result.clarityScore)
+  const storytelling = toScore(result.storytellingScore)
+  const cta = toScore(result.ctaScore)
+  const viral = toScore(result.viralScore)
 
   return {
     video_url: url,
     description,
-    overallScore,
-    scoreBreakdown: {
-      hook: result.hookScore,
-      retention: result.retentionScore,
-      clarity: result.clarityScore,
-      storytelling: result.storytellingScore,
-      cta: result.ctaScore,
-      viral: result.viralScore,
-    },
+    overallScore: Math.floor((hook + retention + clarity + storytelling + cta + viral) / 6),
+    scoreBreakdown: { hook, retention, clarity, storytelling, cta, viral },
     strengths: result.strengths,
     weaknesses: result.weaknesses,
     suggestions: result.suggestions,

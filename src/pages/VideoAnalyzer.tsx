@@ -54,16 +54,82 @@ function SkeletonAnalysis() {
   )
 }
 
+async function extractVideoFrames(file: File, count = 4): Promise<string[]> {
+  return new Promise((resolve) => {
+    const video = document.createElement('video')
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return resolve([])
+
+    const objectUrl = URL.createObjectURL(file)
+    video.src = objectUrl
+    video.muted = true
+    video.preload = 'metadata'
+    video.crossOrigin = 'anonymous'
+
+    video.onloadedmetadata = () => {
+      const scale = Math.min(1, 640 / video.videoWidth)
+      canvas.width = Math.round(video.videoWidth * scale)
+      canvas.height = Math.round(video.videoHeight * scale)
+
+      const duration = video.duration || 1
+      const times = Array.from({ length: count }, (_, i) =>
+        i === 0 ? 0 : (duration * i) / (count - 1)
+      )
+      const frames: string[] = []
+      let idx = 0
+
+      const captureNext = () => {
+        if (idx >= times.length) {
+          URL.revokeObjectURL(objectUrl)
+          resolve(frames)
+          return
+        }
+        video.currentTime = times[idx]
+      }
+
+      video.onseeked = () => {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+        const b64 = canvas.toDataURL('image/jpeg', 0.75).split(',')[1]
+        if (b64) frames.push(b64)
+        idx++
+        captureNext()
+      }
+
+      video.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(frames) }
+      captureNext()
+    }
+
+    video.onerror = () => { URL.revokeObjectURL(objectUrl); resolve([]) }
+  })
+}
+
 export default function VideoAnalyzer() {
   const { addAnalysis } = useStore()
   const { profile } = useAuth()
   const [url, setUrl] = useState('')
   const [description, setDescription] = useState('')
+  const [videoFrames, setVideoFrames] = useState<string[]>([])
+  const [extractingFrames, setExtractingFrames] = useState(false)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<VideoAnalysisResult | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  async function handleFileSelected(file: File) {
+    setDescription(`Arquivo: ${file.name}`)
+    setVideoFrames([])
+    setExtractingFrames(true)
+    try {
+      const frames = await extractVideoFrames(file, 4)
+      setVideoFrames(frames)
+    } catch {
+      // frames extraction failed — will analyze via description only
+    } finally {
+      setExtractingFrames(false)
+    }
+  }
 
   async function handleAnalyze() {
     if (!description.trim() && !url.trim()) return
@@ -76,7 +142,11 @@ export default function VideoAnalyzer() {
         setError(tokenLimitMessage(tokenResult, profile?.plan?.display_name))
         return
       }
-      const res = await analyzeVideo({ url: url || undefined, description: description || url })
+      const res = await analyzeVideo({
+        url: url || undefined,
+        description: description || url,
+        frames: videoFrames.length > 0 ? videoFrames : undefined,
+      })
       setResult(res)
       addAnalysis({
         ...res,
@@ -141,7 +211,12 @@ export default function VideoAnalyzer() {
             <div
               onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
               onDragLeave={() => setDragOver(false)}
-              onDrop={(e) => { e.preventDefault(); setDragOver(false) }}
+              onDrop={(e) => {
+                e.preventDefault()
+                setDragOver(false)
+                const file = e.dataTransfer.files?.[0]
+                if (file) handleFileSelected(file)
+              }}
               onClick={() => fileInputRef.current?.click()}
               className={`relative border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
                 dragOver
@@ -156,14 +231,28 @@ export default function VideoAnalyzer() {
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0]
-                  if (file) setDescription(`Arquivo: ${file.name}`)
+                  if (file) handleFileSelected(file)
                 }}
               />
               <Upload size={22} className="text-[#6b6b8a] mx-auto mb-2" />
-              <p className="text-sm text-[#c4c4d4] font-medium mb-1">
-                Arraste e solte ou clique para enviar
-              </p>
-              <p className="text-xs text-[#6b6b8a]">MP4, MOV, AVI até 500MB</p>
+              {extractingFrames ? (
+                <>
+                  <p className="text-sm text-[#aa3bff] font-medium mb-1">Extraindo frames do vídeo...</p>
+                  <p className="text-xs text-[#6b6b8a]">Preparando análise visual</p>
+                </>
+              ) : videoFrames.length > 0 ? (
+                <>
+                  <p className="text-sm text-emerald-400 font-medium mb-1">{videoFrames.length} frames extraídos</p>
+                  <p className="text-xs text-[#6b6b8a]">{description}</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-[#c4c4d4] font-medium mb-1">
+                    Arraste e solte ou clique para enviar
+                  </p>
+                  <p className="text-xs text-[#6b6b8a]">MP4, MOV, AVI até 500MB</p>
+                </>
+              )}
             </div>
 
             {/* Divider */}
@@ -195,11 +284,11 @@ export default function VideoAnalyzer() {
             <Button
               onClick={handleAnalyze}
               loading={loading}
-              disabled={!description.trim() && !url.trim()}
+              disabled={(!description.trim() && !url.trim()) || extractingFrames}
               className="w-full py-3"
             >
               <Sparkles size={15} />
-              {loading ? 'Analisando...' : 'Analisar Criativo'}
+              {loading ? 'Analisando...' : extractingFrames ? 'Processando vídeo...' : 'Analisar Criativo'}
             </Button>
           </Card>
         </motion.div>
