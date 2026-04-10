@@ -304,13 +304,8 @@ Retorne APENAS um JSON válido com um array de 6 ideias:
 // ─── Ad Library Search ───────────────────────────────────────────────────────
 
 export async function searchAdLibrary(niche: string): Promise<LibraryAd[]> {
-  const ads = await callAI<{
-    creative_type: string; format: string; platform: string
-    structure: string; strategy: string; why_works: string
-    hook_example: string; copy_example: string; target_audience: string
-    difficulty: string; estimated_ctr: string; budget_range: string
-  }[]>('search-ad-library', { niche }, () => ({
-    prompt: `Você é um especialista em anúncios digitais para o mercado brasileiro. Gere 6 templates de anúncios vencedores para o nicho: "${niche}".
+  // Always call OpenAI directly — the Supabase edge function may not be deployed
+  const prompt = `Você é um especialista em anúncios digitais para o mercado brasileiro. Gere 6 templates de anúncios vencedores para o nicho: "${niche}".
 
 Cada template deve ser 100% específico para esse nicho, com exemplos reais e acionáveis.
 
@@ -330,11 +325,19 @@ Retorne APENAS um JSON válido com um array de 6 objetos:
     "estimated_ctr": "CTR estimado (ex: 2-4% | 3-6% | 1-3%)",
     "budget_range": "faixa de investimento diário em reais (ex: R$30-80/dia | R$80-200/dia)"
   }
-]`,
-    system: `Você é um estrategista de mídia paga especialista em anúncios de alta conversão para o mercado brasileiro.
+]`
+
+  const system = `Você é um estrategista de mídia paga especialista em anúncios de alta conversão para o mercado brasileiro.
 Conheça profundamente o nicho informado e gere templates ESPECÍFICOS — nunca genéricos.
-Use linguagem e exemplos do mercado brasileiro. Retorne apenas JSON válido.`,
-  }))
+Use linguagem e exemplos do mercado brasileiro. Retorne apenas JSON válido.`
+
+  const raw = await callOpenAI(prompt, system)
+  const ads = parseJSON<{
+    creative_type: string; format: string; platform: string
+    structure: string; strategy: string; why_works: string
+    hook_example: string; copy_example: string; target_audience: string
+    difficulty: string; estimated_ctr: string; budget_range: string
+  }[]>(raw)
 
   return ads.map((ad) => ({
     ...ad,
